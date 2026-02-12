@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="RealTimeOrderEngine.Api/RealTimeOrderEngine.Api.csproj" />
+  <Project Path="RealTimeOrderEngine.Application/RealTimeOrderEngine.Application.csproj" />
+  <Project Path="RealTimeOrderEngine.Client/RealTimeOrderEngine.Client.csproj" />
+  <Project Path="RealTimeOrderEngine.Domain/RealTimeOrderEngine.Domain.csproj" />
+  <Project Path="RealTimeOrderEngine.Infrastructure/RealTimeOrderEngine.Infrastructure.csproj" />
+</Solution>
