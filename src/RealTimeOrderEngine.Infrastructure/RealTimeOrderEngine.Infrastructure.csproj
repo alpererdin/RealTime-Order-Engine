@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RealTimeOrderEngine.Application\RealTimeOrderEngine.Application.csproj" />
+    <ProjectReference Include="..\RealTimeOrderEngine.Domain\RealTimeOrderEngine.Domain.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

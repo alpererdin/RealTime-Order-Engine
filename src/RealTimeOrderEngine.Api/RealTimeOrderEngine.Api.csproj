@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\RealTimeOrderEngine.Application\RealTimeOrderEngine.Application.csproj" />
     <ProjectReference Include="..\RealTimeOrderEngine.Infrastructure\RealTimeOrderEngine.Infrastructure.csproj" />
+    <ProjectReference Include="..\RealTimeOrderEngine.Shared\RealTimeOrderEngine.Shared.csproj" />
   </ItemGroup>
 
 </Project>
