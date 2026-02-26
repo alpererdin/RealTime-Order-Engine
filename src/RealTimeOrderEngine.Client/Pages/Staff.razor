@@ -1,0 +1,258 @@
+@page "/staff"
+@using Microsoft.AspNetCore.SignalR.Client
+@using RealTimeOrderEngine.Shared.DTOs.Tables
+@using RealTimeOrderEngine.Shared.DTOs.Orders
+
+@inject NavigationManager Navigation
+@inject RealTimeOrderEngine.Client.Services.TableApiService TableService
+@inject RealTimeOrderEngine.Client.Services.OrderApiService OrderService
+@implements IAsyncDisposable
+
+<div class="min-h-screen bg-gray-100 p-6">
+    @if (!isAuthenticated)
+    {
+        <div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md mt-20">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Staff Login</h2>
+            <input type="password" @bind="pinCode" class="w-full p-4 text-center text-2xl border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="PIN Code" />
+            <button @onclick="async () => await VerifyPin()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-lg hover:bg-blue-700 transition">Login</button>
+        </div>
+    }
+    else if (selectedTable != null)
+    {
+        <div class="max-w-2xl mx-auto">
+            <header class="mb-6 bg-white p-4 rounded-lg shadow-sm flex justify-between items-center">
+                <div>
+                    <button @onclick="CloseTableDetail" class="text-blue-500 text-sm font-semibold mb-1 hover:text-blue-700">← Back to Tables</button>
+                    <h1 class="text-2xl font-bold text-gray-800">@selectedTable.TableNumber</h1>
+                </div>
+                @if (selectedTable.IsOccupied)
+                {
+                    <button @onclick="() => CloseTable(selectedTable.Id)" class="bg-red-50 text-red-600 font-semibold px-4 py-2 rounded border border-red-200 hover:bg-red-100 transition">
+                        Checkout & Close
+                    </button>
+                }
+            </header>
+            
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="mb-4 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded shadow-sm font-medium">
+                    @errorMessage
+                </div>
+            }
+            
+            @if (!selectedTable.IsOccupied)
+            {
+                <div class="bg-white rounded-lg p-8 text-center text-gray-500 border border-dashed border-gray-300">
+                    Masa şu an boş.
+                </div>
+            }
+            else if (!tableOrders.Any())
+            {
+                <div class="bg-white rounded-lg p-8 text-center text-gray-500 border border-dashed border-gray-300">
+                    No active orders for this table.
+                </div>
+            }
+            else
+            {
+                <div class="space-y-4">
+                    @foreach (var order in tableOrders.OrderByDescending(o => o.OrderDate))
+                    {
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                            <div class="flex justify-between items-center mb-3 border-b border-gray-100 pb-2">
+                                <span class="text-sm text-gray-500">@order.OrderDate.ToLocalTime().ToString("HH:mm:ss")</span>
+                                <span class="px-2 py-1 text-xs font-bold rounded-md @GetStatusBadge(order.Status)">@order.Status</span>
+                            </div>
+                            <ul class="space-y-1 mb-3">
+                                @foreach (var item in order.Items)
+                                {
+                                    <li class="flex justify-between text-sm text-gray-700">
+                                        <span><span class="font-bold text-gray-900 mr-1">x@(item.Quantity)</span> @item.ProductName</span>
+                                        <span>@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
+                                    </li>
+                                }
+                            </ul>
+                            <div class="flex justify-between items-center border-t border-gray-100 pt-2">
+                                <span class="font-bold text-gray-900">Total: @order.TotalAmount.ToString("C2")</span>
+                                @if (order.Status == "Ready")
+                                {
+                                    <button @onclick="() => DeliverOrder(order.Id)" class="bg-green-500 text-white font-semibold px-4 py-2 rounded hover:bg-green-600 transition">
+                                        Mark Delivered
+                                    </button>
+                                }
+                                else if (order.Status == "Served" || order.Status == "Delivered")
+                                {
+                                    <span class="text-green-600 font-semibold text-sm">✓ Served</span>
+                                }
+                                else
+                                {
+                                    <span class="text-gray-400 text-sm">Waiting for kitchen...</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="max-w-6xl mx-auto">
+            <header class="mb-8 bg-white p-4 rounded-lg shadow-sm flex justify-between items-center">
+                <h1 class="text-3xl font-bold text-gray-800">Table Management</h1>
+                <button @onclick="Logout" class="text-red-500 font-semibold hover:text-red-700">Logout</button>
+            </header>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                @foreach (var table in tables)
+                {
+                    <div @onclick="() => SelectTable(table)" class="bg-white rounded-xl shadow-sm border-2 p-4 flex flex-col items-center justify-center min-h-[150px] cursor-pointer hover:shadow-md transition @(table.IsOccupied ? "border-green-500" : "border-gray-200")">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">@table.TableNumber</h3>
+                        @if (table.IsOccupied)
+                        {
+                            <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full mb-4">Occupied</span>
+                            <span class="text-xs text-gray-400">Click to view orders</span>
+                        }
+                        else
+                        {
+                            <span class="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-bold rounded-full mb-4">Available</span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isAuthenticated = false;
+    private string pinCode = "";
+    private List<TableDto> tables = new();
+    private TableDto? selectedTable = null;
+    private List<OrderDto> tableOrders = new();
+    private HubConnection? hubConnection;
+    private string errorMessage = "";
+
+    private async Task VerifyPin()
+    {
+        if (pinCode == "1234")
+        {
+            isAuthenticated = true;
+            await LoadTables();
+            await ConnectHub();
+        }
+    }
+
+    private async Task ConnectHub()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5211/orderhub")
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<object>("OrderStatusChanged", async (_) =>
+        {
+            await LoadTables();
+            if (selectedTable != null)
+                await LoadTableOrders(selectedTable.Id);
+            await InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<object>("OrderCreated", async (_) =>
+        {
+            await LoadTables();
+            if (selectedTable != null)
+                await LoadTableOrders(selectedTable.Id);
+            await InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    private void Logout()
+    {
+        isAuthenticated = false;
+        pinCode = "";
+        selectedTable = null;
+        errorMessage = "";
+    }
+
+    private async Task LoadTables()
+    {
+        var result = await TableService.GetTablesAsync();
+        tables = result.ToList();
+        
+        if (selectedTable != null)
+        {
+            selectedTable = tables.FirstOrDefault(t => t.Id == selectedTable.Id);
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task SelectTable(TableDto table)
+    {
+        errorMessage = "";
+        selectedTable = table;
+        await LoadTableOrders(table.Id);
+    }
+
+    private async Task LoadTableOrders(Guid tableId)
+    {
+        if (selectedTable != null && selectedTable.IsOccupied)
+        {
+            var allOrders = await OrderService.GetOrdersAsync();
+            tableOrders = allOrders.Where(o => o.TableId == tableId && o.SessionId == selectedTable.CurrentSessionId).ToList();
+        }
+        else
+        {
+            tableOrders.Clear();
+        }
+        StateHasChanged();
+    }
+
+    private void CloseTableDetail()
+    {
+        errorMessage = "";
+        selectedTable = null;
+        tableOrders.Clear();
+    }
+
+    private async Task CloseTable(Guid id)
+    {
+        errorMessage = "";
+        
+        var hasUnfinishedOrders = tableOrders.Any(o => o.Status != "Served" && o.Status != "Cancelled");
+        if (hasUnfinishedOrders)
+        {
+            errorMessage = "All orders must be served or cancelled before closing the table.";
+            return;
+        }
+
+        await TableService.CloseTableAsync(id);
+        selectedTable = null;
+        tableOrders.Clear();
+        await LoadTables();
+    }
+
+    private async Task DeliverOrder(Guid orderId)
+    {
+        await OrderService.UpdateOrderStatusAsync(orderId, 5);
+        if (selectedTable != null)
+            await LoadTableOrders(selectedTable.Id);
+    }
+
+    private string GetStatusBadge(string? status) => status switch
+    {
+        "Pending" => "bg-red-50 text-red-600",
+        "Preparing" => "bg-blue-50 text-blue-600",
+        "Ready" => "bg-green-50 text-green-600",
+        "Served" => "bg-gray-100 text-gray-600",
+        "Delivered" => "bg-gray-100 text-gray-600",
+        _ => "bg-gray-100 text-gray-600"
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+            await hubConnection.DisposeAsync();
+    }
+}

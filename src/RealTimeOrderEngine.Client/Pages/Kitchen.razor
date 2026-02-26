@@ -1,0 +1,200 @@
+@page "/kitchen"
+@using Microsoft.AspNetCore.SignalR.Client
+@using RealTimeOrderEngine.Shared.DTOs.Orders
+@inject RealTimeOrderEngine.Client.Services.OrderApiService OrderService
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+<div class="min-h-screen bg-gray-100 p-6">
+    @if (!isAuthenticated)
+    {
+        <div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md mt-20">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Kitchen Access</h2>
+            <input type="password" @bind="pinCode" class="w-full p-4 text-center text-2xl border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="PIN Code" />
+            <button @onclick="async () => await VerifyPin()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-lg hover:bg-blue-700 transition">Login</button>
+        </div>
+    }
+    else
+    {
+        <div class="max-w-6xl mx-auto">
+            <header class="flex justify-between items-center mb-8 bg-white p-4 rounded-lg shadow-sm">
+                <h1 class="text-3xl font-bold text-gray-800">Live Kitchen Dashboard</h1>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <span class="relative flex h-3 w-3">
+                            @if (isConnected)
+                            {
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                            }
+                            else
+                            {
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            }
+                        </span>
+                        <span class="text-sm font-semibold text-gray-600">
+                            @(isConnected ? "Connected" : "Disconnected")
+                        </span>
+                    </div>
+                    <button @onclick="Logout" class="text-red-500 font-semibold hover:text-red-700">Logout</button>
+                </div>
+            </header>
+
+            @if (!orders.Any())
+            {
+                <div class="flex flex-col items-center justify-center p-12 bg-white rounded-lg shadow-sm border border-dashed border-gray-300">
+                    <p class="text-gray-500 text-lg">No active orders at the moment. Waiting for new orders...</p>
+                </div>
+            }
+            else
+            {
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    @foreach (var order in orders.OrderByDescending(o => o.OrderDate))
+                    {
+                        <div class="bg-white rounded-xl shadow-md overflow-hidden border-t-4 @GetStatusColor(order.Status)">
+                            <div class="p-4 border-b border-gray-100 flex justify-between items-start bg-gray-50">
+                                <div>
+                                    <h3 class="font-bold text-lg text-gray-800">Table: @(order.TableNumber.Length > 8 ? order.TableNumber.Substring(0, 8) + "..." : order.TableNumber)</h3>
+                                    <p class="text-xs text-gray-500">@order.OrderDate.ToLocalTime().ToString("HH:mm:ss")</p>
+                                </div>
+                                <span class="px-3 py-1 text-xs font-bold uppercase rounded-full border @GetStatusBadge(order.Status)">
+                                    @order.Status
+                                </span>
+                            </div>
+
+                            <div class="p-4 flex-grow">
+                                <ul class="space-y-2 mb-4">
+                                    @foreach (var item in order.Items)
+                                    {
+                                        <li class="flex justify-between items-center text-sm">
+                                            <span class="font-medium text-gray-800">
+                                                <span class="text-blue-600 font-bold mr-1">x@(item.Quantity)</span> @item.ProductName
+                                            </span>
+                                        </li>
+                                    }
+                                </ul>
+
+                                @if (order.Items.Any(i => !string.IsNullOrEmpty(i.Note)))
+                                {
+                                    <div class="mt-3 p-2 bg-yellow-50 text-yellow-800 text-xs rounded border border-yellow-200">
+                                        <strong>Note:</strong> @order.Items.FirstOrDefault(i => !string.IsNullOrEmpty(i.Note))?.Note
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="p-4 bg-gray-50 border-t border-gray-100 flex gap-2">
+                                @if (order.Status == "Pending")
+                                {
+                                    <button @onclick="() => UpdateStatus(order.Id, 3)" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded shadow-sm transition">
+                                        Start Preparing
+                                    </button>
+                                }
+                                else if (order.Status == "Preparing")
+                                {
+                                    <button @onclick="() => UpdateStatus(order.Id, 4)" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded shadow-sm transition">
+                                        Mark as Ready
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="flex-1 bg-gray-200 text-gray-500 font-semibold py-2 rounded cursor-not-allowed" disabled>
+                                        Completed
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool isAuthenticated = false;
+    private string pinCode = "";
+    private List<OrderDto> orders = new();
+    private HubConnection? hubConnection;
+    private bool isConnected => hubConnection?.State == HubConnectionState.Connected;
+
+    protected override Task OnInitializedAsync()
+    {
+        return Task.CompletedTask;
+    }
+
+   private async Task VerifyPin()
+    {
+        if (pinCode == "1234")
+        {
+            isAuthenticated = true;
+            await LoadOrders();
+            await ConnectHub();
+            StateHasChanged();
+        }
+    }
+
+    private void Logout()
+    {
+        isAuthenticated = false;
+        pinCode = "";
+    }
+
+    private async Task ConnectHub()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5211/orderhub")
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<object>("OrderCreated", async (_) =>
+        {
+            await LoadOrders();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<object>("OrderStatusChanged", async (_) =>
+        {
+            await LoadOrders();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadOrders()
+    {
+        var allOrders = await OrderService.GetOrdersAsync();
+        orders = allOrders.Where(o => o.Status == "Pending" || o.Status == "Preparing").ToList();
+    }
+
+    private async Task UpdateStatus(Guid orderId, int newStatus)
+    {
+        await OrderService.UpdateOrderStatusAsync(orderId, newStatus);
+        await LoadOrders();
+    }
+
+    private string GetStatusColor(string? status) => status switch
+    {
+        "Pending" => "border-red-400",
+        "Preparing" => "border-blue-400",
+        "Ready" => "border-green-400",
+        _ => "border-gray-300"
+    };
+
+    private string GetStatusBadge(string? status) => status switch
+    {
+        "Pending" => "bg-red-50 text-red-600 border-red-200",
+        "Preparing" => "bg-blue-50 text-blue-600 border-blue-200",
+        "Ready" => "bg-green-50 text-green-600 border-green-200",
+        _ => "bg-gray-50 text-gray-600 border-gray-200"
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

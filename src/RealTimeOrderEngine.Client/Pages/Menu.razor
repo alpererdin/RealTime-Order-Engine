@@ -1,0 +1,405 @@
+@page "/"
+@page "/{TableId}"
+@using Microsoft.AspNetCore.SignalR.Client
+@using RealTimeOrderEngine.Shared.DTOs.Products
+@using RealTimeOrderEngine.Shared.DTOs.Orders
+@inject RealTimeOrderEngine.Client.Services.ProductApiService ProductService
+@inject RealTimeOrderEngine.Client.Services.OrderApiService OrderService
+@inject RealTimeOrderEngine.Client.Services.TableApiService TableService
+@implements IAsyncDisposable
+
+<div class="fixed inset-0 w-full h-full bg-gray-50 text-gray-900 select-none overflow-hidden z-[60]">
+    @if (isInvalidUrl)
+    {
+        <div class="fixed inset-0 flex items-center justify-center bg-gray-100 p-6 z-[100]">
+            <div class="bg-white p-8 rounded-xl shadow-lg text-center max-w-sm">
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Invalid Table</h2>
+                <p class="text-gray-500">Please scan the QR code on your table to access the menu.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="max-w-md mx-auto h-full flex flex-col bg-gray-50 shadow-xl relative overflow-hidden">
+            <main class="flex-grow overflow-hidden relative">
+                @if (currentView == "menu")
+                {
+                    <div class="absolute inset-0 flex flex-col bg-gray-50">
+                        <div class="px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-20 h-[58px] flex-none">
+                            <div class="relative h-full flex items-center">
+                                <h1 class="text-xl font-bold text-gray-800">Menu</h1>
+                            </div>
+                        </div>
+                        
+                        <div class="flex-grow overflow-y-auto px-4 pb-24 pt-4">
+                            @if (!products.Any())
+                            {
+                                <div class="text-center text-gray-500 py-8">Loading menu...</div>
+                            }
+                            else
+                            {
+                                <ul class="divide-y divide-gray-200 min-h-[100px]">
+                                    @foreach (var product in products)
+                                    {
+                                        <li class="py-4 flex justify-between items-center">
+                                            <div>
+                                                <h3 class="text-lg font-medium text-gray-900">@product.Name</h3>
+                                                <p class="text-sm text-gray-500">@product.Price.ToString("C2")</p>
+                                            </div>
+
+                                            @{
+                                                var cartItem = cart.FirstOrDefault(c => c.ProductId == product.Id);
+                                            }
+
+                                            @if (cartItem == null)
+                                            {
+                                                <button @onclick="() => AddToCart(product)" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-100 transition">
+                                                    Add
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <div class="flex items-center gap-2">
+                                                    @if (cartItem.Quantity == 1)
+                                                    {
+                                                        <button @onclick="() => RemoveFromCart(product)" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition">
+                                                            x
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button @onclick="() => DecreaseQuantity(product)" class="w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-bold text-lg">
+                                                            -
+                                                        </button>
+                                                    }
+                                                    <span class="w-5 text-center font-semibold text-gray-800">@cartItem.Quantity</span>
+                                                    <button @onclick="() => AddToCart(product)" class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition font-bold text-lg">
+                                                        +
+                                                    </button>
+                                                </div>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (currentView == "cart")
+                {
+                    <div class="absolute inset-0 flex flex-col bg-gray-50">
+                        <div class="px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-20 h-[58px] flex-none">
+                            <h1 class="text-xl font-bold text-gray-800">My Cart</h1>
+                        </div>
+
+                        <div class="flex-grow overflow-y-auto px-4 pt-4 pb-48">
+                            @if (!cart.Any())
+                            {
+                                <div class="flex flex-col items-center justify-center text-center p-6 pb-20">
+                                    <h2 class="text-xl font-semibold text-gray-700 mb-1">Your cart is empty</h2>
+                                </div>
+                            }
+                            else
+                            {
+                                <ul class="divide-y divide-gray-200">
+                                    @foreach (var item in cart)
+                                    {
+                                        <li class="py-4 flex justify-between items-center">
+                                            <div>
+                                                <h3 class="text-md font-medium text-gray-900">@item.ProductName</h3>
+                                                <p class="text-sm text-gray-500">@item.Quantity x @item.UnitPrice.ToString("C2")</p>
+                                            </div>
+                                            <div class="text-right font-semibold">
+                                                @((item.Quantity * item.UnitPrice).ToString("C2"))
+                                            </div>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+
+                        @if (cart.Any())
+                        {
+                            <div class="absolute bottom-14 left-0 right-0 max-w-md mx-auto p-4 border-t border-gray-200 bg-white shadow-lg z-30">
+                                <div class="flex justify-between items-center mb-4">
+                                    <span class="text-xl font-bold text-gray-800">Total:</span>
+                                    <span class="text-2xl font-bold text-blue-600">@cart.Sum(x => x.Quantity * x.UnitPrice).ToString("C2")</span>
+                                </div>
+                                <button @onclick="OpenCheckoutModal" class="w-full bg-blue-500 text-white font-semibold rounded-lg py-3 text-lg hover:bg-blue-600 transition-colors">
+                                    Proceed to Checkout
+                                </button>
+                                <button @onclick="ClearCart" class="w-full mt-3 bg-red-50 text-red-600 font-semibold rounded-lg py-2 text-base hover:bg-red-100 transition-colors">
+                                    Clear Cart
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (currentView == "orders")
+                {
+                    <div class="absolute inset-0 flex flex-col bg-gray-50">
+                        <div class="px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-20 h-[58px] flex-none">
+                            <h1 class="text-xl font-bold text-gray-800">My Orders</h1>
+                        </div>
+                        <div class="flex-grow overflow-y-auto px-4 pt-4 pb-24">
+                            @if (!myOrders.Any())
+                            {
+                                <div class="flex flex-col items-center justify-center text-center p-6 mt-12">
+                                    <p class="text-gray-500">Your past orders will appear here.</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="space-y-4">
+                                    @foreach (var order in myOrders.OrderByDescending(o => o.OrderDate))
+                                    {
+                                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                                            <div class="flex justify-between items-center mb-3 border-b border-gray-100 pb-2">
+                                                <span class="text-sm text-gray-500">@order.OrderDate.ToLocalTime().ToString("HH:mm")</span>
+                                                <span class="px-2 py-1 text-xs font-bold rounded-md @GetStatusBadge(order.Status)">@order.Status</span>
+                                            </div>
+                                            <ul class="space-y-1 mb-3">
+                                                @foreach (var item in order.Items)
+                                                {
+                                                    <li class="flex justify-between text-sm text-gray-700">
+                                                        <span><span class="font-bold text-gray-900 mr-1">x@(item.Quantity)</span> @item.ProductName</span>
+                                                        <span>@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
+                                                    </li>
+                                                }
+                                            </ul>
+                                            <div class="text-right font-bold text-gray-900 border-t border-gray-100 pt-2">
+                                                Total: @order.TotalAmount.ToString("C2")
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </main>
+
+            <nav class="absolute bottom-0 left-0 right-0 max-w-md mx-auto bg-gray-100 border-t border-gray-300 shadow-md flex h-14 z-50">
+                <button @onclick='() => SwitchView("menu")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs @(currentView == "menu" ? "text-blue-600" : "text-gray-500")">
+                    Menu
+                </button>
+                <button @onclick='() => SwitchView("cart")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs relative @(currentView == "cart" ? "text-blue-600" : "text-gray-500")">
+                    Cart
+                    @if (cart.Any())
+                    {
+                        <span class="absolute top-1 right-8 bg-red-500 text-white text-[10px] font-semibold w-4 h-4 rounded-full flex items-center justify-center">@cart.Sum(c => c.Quantity)</span>
+                    }
+                </button>
+                <button @onclick='() => SwitchView("orders")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs @(currentView == "orders" ? "text-blue-600" : "text-gray-500")">
+                    Orders
+                </button>
+            </nav>
+
+            @if (isCheckoutModalOpen)
+            {
+                <div class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden">
+                        <header class="p-4 border-b border-gray-200">
+                            <h2 class="text-lg font-semibold text-gray-800 text-center">Confirm Your Order</h2>
+                        </header>
+                        <div class="px-4 py-4">
+                            <div class="mb-4 bg-gray-50 rounded-lg border border-gray-200 divide-y divide-gray-200">
+                            @foreach (var item in cart)
+                            {
+                                <div class="flex justify-between items-center px-3 py-2 text-sm">
+                                    <span class="text-gray-700">@item.ProductName <span class="text-gray-400">x@(item.Quantity)</span></span>
+                                    <span class="font-semibold text-gray-800">@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
+                                </div>
+                            }
+                            <div class="flex justify-between items-center px-3 py-2">
+                                <span class="font-bold text-gray-800">Total</span>
+                                <span class="font-bold text-blue-600">@cart.Sum(x => x.Quantity * x.UnitPrice).ToString("C2")</span>
+                            </div>
+                        </div>
+
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Add a note</label>
+                        <textarea @bind="orderNote" rows="3" class="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., allergies..."></textarea>
+                        </div>
+                        <footer class="border-t border-gray-200 p-3 bg-gray-50">
+                            <div class="grid grid-cols-2 gap-2">
+                                <button @onclick="CloseCheckoutModal" class="bg-gray-200 text-gray-800 font-semibold rounded-lg py-2 hover:bg-gray-300">Cancel</button>
+                                <button @onclick="ConfirmOrder" class="bg-blue-500 text-white font-semibold rounded-lg py-2 hover:bg-blue-600">Confirm Order</button>
+                            </div>
+                        </footer>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? TableId { get; set; }
+    
+    private Guid parsedTableId;
+    private bool isInvalidUrl = false;
+    private Guid? currentSessionId;
+    
+    private IEnumerable<ProductDto> products = new List<ProductDto>();
+    private List<OrderItemDto> cart = new List<OrderItemDto>();
+    private List<OrderDto> myOrders = new List<OrderDto>();
+    private string currentView = "menu";
+    private bool isCheckoutModalOpen = false;
+    private string orderNote = "";
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(TableId) || !Guid.TryParse(TableId, out parsedTableId))
+        {
+            isInvalidUrl = true;
+            return;
+        }
+
+        products = await ProductService.GetProductsAsync();
+
+        var table = await TableService.GetTableByIdAsync(parsedTableId);
+        if (table != null && table.IsOccupied)
+        {
+            currentSessionId = table.CurrentSessionId;
+        }
+
+        await LoadMyOrders();
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5211/orderhub")
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<object>("OrderStatusChanged", async (_) =>
+        {
+            await LoadMyOrders();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<object>("OrderCreated", async (_) =>
+        {
+            await LoadMyOrders();
+            await InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    private async Task LoadMyOrders()
+    {
+        if (currentSessionId.HasValue)
+        {
+            var allOrders = await OrderService.GetOrdersAsync();
+            myOrders = allOrders.Where(o => o.TableId == parsedTableId && o.SessionId == currentSessionId).ToList();
+        }
+        else
+        {
+            myOrders = new List<OrderDto>();
+        }
+    }
+
+    private void AddToCart(ProductDto product)
+    {
+        var existingItem = cart.FirstOrDefault(c => c.ProductId == product.Id);
+        if (existingItem != null)
+        {
+            existingItem.Quantity++;
+        }
+        else
+        {
+            cart.Add(new OrderItemDto
+            {
+                ProductId = product.Id,
+                ProductName = product.Name,
+                UnitPrice = product.Price,
+                Quantity = 1
+            });
+        }
+    }
+
+    private void ClearCart() => cart.Clear();
+
+    private void SwitchView(string view) => currentView = view;
+
+    private void OpenCheckoutModal() => isCheckoutModalOpen = true;
+
+    private void CloseCheckoutModal()
+    {
+        isCheckoutModalOpen = false;
+        orderNote = "";
+    }
+
+    private async Task ConfirmOrder()
+    {
+        var table = await TableService.GetTableByIdAsync(parsedTableId);
+        if (table == null) return;
+
+        if (!table.IsOccupied || table.CurrentSessionId == null)
+        {
+            var openedTable = await TableService.OpenTableAsync(parsedTableId);
+            if (openedTable != null)
+            {
+                currentSessionId = openedTable.CurrentSessionId;
+            }
+        }
+        else
+        {
+            currentSessionId = table.CurrentSessionId;
+        }
+
+        var createOrderDto = new CreateOrderDto
+        {
+            TableId = parsedTableId,
+            SessionId = currentSessionId,
+            Items = cart.Select(c => new CreateOrderItemDto
+            {
+                ProductId = c.ProductId,
+                Quantity = c.Quantity,
+                Note = orderNote
+            }).ToList()
+        };
+
+        var result = await OrderService.CreateOrderAsync(createOrderDto);
+        if (result != null)
+        {
+            cart.Clear();
+            isCheckoutModalOpen = false;
+            orderNote = "";
+            currentView = "orders";
+            await LoadMyOrders();
+        }
+    }
+
+    private void DecreaseQuantity(ProductDto product)
+    {
+        var existingItem = cart.FirstOrDefault(c => c.ProductId == product.Id);
+        if (existingItem != null && existingItem.Quantity > 1)
+            existingItem.Quantity--;
+    }
+
+    private void RemoveFromCart(ProductDto product)
+    {
+        var existingItem = cart.FirstOrDefault(c => c.ProductId == product.Id);
+        if (existingItem != null)
+            cart.Remove(existingItem);
+    }
+
+    private string GetStatusBadge(string? status) => status switch
+    {
+        "Pending" => "bg-red-50 text-red-600",
+        "Preparing" => "bg-blue-50 text-blue-600",
+        "Ready" => "bg-green-50 text-green-600",
+        "Delivered" => "bg-gray-100 text-gray-600",
+        _ => "bg-gray-100 text-gray-600"
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+            await hubConnection.DisposeAsync();
+    }
+}
