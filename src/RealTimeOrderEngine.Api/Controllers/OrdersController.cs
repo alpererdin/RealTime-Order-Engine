@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using RealTimeOrderEngine.Application.Services;
+using RealTimeOrderEngine.Domain.Enums;
 using RealTimeOrderEngine.Shared.DTOs.Orders;
 
 namespace RealTimeOrderEngine.Api.Controllers;
@@ -20,5 +21,22 @@ public class OrdersController : ControllerBase
     {
         var order = await _orderService.CreateOrderAsync(dto);
         return Ok(order);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var orders = await _orderService.GetAllOrdersAsync();
+        return Ok(orders);
+    }
+
+    [HttpPut("{id}/status")]
+    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] OrderStatus newStatus)
+    {
+        var result = await _orderService.UpdateOrderStatusAsync(id, newStatus);
+        if (!result)
+            return NotFound();
+
+        return NoContent();
     }
 }
