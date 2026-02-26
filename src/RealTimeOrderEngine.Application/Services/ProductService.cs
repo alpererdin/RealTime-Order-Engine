@@ -35,4 +35,18 @@ public class ProductService
             IsAvailable = createdProduct.IsAvailable
         };
     }
+
+    public async Task<IEnumerable<ProductDto>> GetAllProductsAsync()
+    {
+        var products = await _productRepository.GetAllAsync();
+
+        return products.Select(p => new ProductDto
+        {
+            Id = p.Id,
+            Name = p.Name,
+            Price = p.Price,
+            CategoryId = p.CategoryId,
+            IsAvailable = p.IsAvailable
+        });
+    }
 }

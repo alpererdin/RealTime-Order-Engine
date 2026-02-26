@@ -24,7 +24,9 @@ public class OrderRepository : IOrderRepository
     public async Task<IEnumerable<Order>> GetAllAsync()
     {
         return await _context.Orders
+            .Include(o => o.Table)
             .Include(o => o.OrderItems)
+                .ThenInclude(i => i.Product)
             .ToListAsync();
     }
 
@@ -32,9 +34,10 @@ public class OrderRepository : IOrderRepository
     {
         await _context.Orders.AddAsync(order);
         await _context.SaveChangesAsync();
-        return order;
+        return await _context.Orders
+            .Include(o => o.Table)
+            .FirstAsync(o => o.Id == order.Id);
     }
-
     public async Task UpdateAsync(Order order)
     {
         _context.Orders.Update(order);
