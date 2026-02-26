@@ -3,6 +3,8 @@ namespace RealTimeOrderEngine.Shared.DTOs.Orders;
 public class OrderDto
 {
     public Guid Id { get; set; }
+    public Guid TableId { get; set; }
+    public Guid? SessionId { get; set; }
     public required string TableNumber { get; set; }
     public decimal TotalAmount { get; set; }
     public DateTime OrderDate { get; set; }
