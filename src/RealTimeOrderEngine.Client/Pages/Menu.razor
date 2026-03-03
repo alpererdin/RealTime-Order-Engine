@@ -3,9 +3,14 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using RealTimeOrderEngine.Shared.DTOs.Products
 @using RealTimeOrderEngine.Shared.DTOs.Orders
+@using RealTimeOrderEngine.Shared.DTOs.Reviews
 @inject RealTimeOrderEngine.Client.Services.ProductApiService ProductService
 @inject RealTimeOrderEngine.Client.Services.OrderApiService OrderService
 @inject RealTimeOrderEngine.Client.Services.TableApiService TableService
+@inject RealTimeOrderEngine.Client.Services.ReviewApiService ReviewService
+
+@inject NavigationManager Navigation
+
 @implements IAsyncDisposable
 
 <div class="fixed inset-0 w-full h-full bg-gray-50 text-gray-900 select-none overflow-hidden z-[60]">
@@ -44,7 +49,25 @@
                                         <li class="py-4 flex justify-between items-center">
                                             <div>
                                                 <h3 class="text-lg font-medium text-gray-900">@product.Name</h3>
-                                                <p class="text-sm text-gray-500">@product.Price.ToString("C2")</p>
+                                                
+                                                <div class="flex items-center mt-1 cursor-pointer" @onclick="() => OpenReviewsModal(product.Id, product.Name)">
+                                                    <div class="flex text-yellow-400 text-xs">
+                                                        @for (int i = 1; i <= 5; i++)
+                                                        {
+                                                            if (i <= Math.Round(product.AverageRating))
+                                                            {
+                                                                <span>★</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="text-gray-300">★</span>
+                                                            }
+                                                        }
+                                                    </div>
+                                                    <span class="text-gray-400 text-xs ml-2">(@product.ReviewCount reviews)</span>
+                                                </div>
+
+                                                <p class="text-sm text-gray-500 mt-1">@product.Price.ToString("C2")</p>
                                             </div>
 
                                             @{
@@ -160,12 +183,24 @@
                                                 <span class="text-sm text-gray-500">@order.OrderDate.ToLocalTime().ToString("HH:mm")</span>
                                                 <span class="px-2 py-1 text-xs font-bold rounded-md @GetStatusBadge(order.Status)">@order.Status</span>
                                             </div>
-                                            <ul class="space-y-1 mb-3">
+                                            <ul class="space-y-2 mb-3">
                                                 @foreach (var item in order.Items)
                                                 {
-                                                    <li class="flex justify-between text-sm text-gray-700">
+                                                    <li class="flex justify-between items-center text-sm text-gray-700">
                                                         <span><span class="font-bold text-gray-900 mr-1">x@(item.Quantity)</span> @item.ProductName</span>
-                                                        <span>@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
+                                                        <div class="flex items-center gap-2">
+                                                            <span>@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
+                                                            @if (order.Status == "Served")
+                                                            {
+                                                                if (!reviewedProductIds.Contains(item.ProductId))
+                                                                {
+                                                                    <button @onclick="() => OpenRateModal(item.ProductId, item.ProductName!)" 
+                                                                            class="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200">
+                                                                           Rate
+                                                                    </button>
+                                                                }
+                                                            }
+                                                        </div>
                                                     </li>
                                                 }
                                             </ul>
@@ -231,6 +266,74 @@
                     </div>
                 </div>
             }
+
+            @if (isRateModalOpen)
+            {
+                <div class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden p-6">
+                        <h2 class="text-xl font-bold text-center mb-2">Rate @ratingProductName</h2>
+                        
+                        <div class="flex justify-center gap-2 mb-6 mt-4">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                var starValue = i;
+                                <button @onclick="() => SetRating(starValue)" class="text-4xl @(ratingValue >= starValue ? "text-yellow-400" : "text-gray-300") transition-colors">
+                                    ★
+                                </button>
+                            }
+                        </div>
+
+                        <textarea @bind="ratingComment" rows="3" class="w-full p-3 border border-gray-300 rounded-lg text-sm mb-4 focus:ring-blue-500 focus:border-blue-500" placeholder="Tell us what you thought... (optional)"></textarea>
+
+                        <div class="flex gap-3">
+                            <button @onclick="CloseRateModal" class="flex-1 bg-gray-100 text-gray-700 font-semibold rounded-lg py-3 hover:bg-gray-200 transition">Cancel</button>
+                            <button @onclick="SubmitReview" class="flex-1 bg-blue-500 text-white font-semibold rounded-lg py-3 hover:bg-blue-600 transition disabled:opacity-50" disabled="@(ratingValue == 0)">Submit</button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (isReviewsModalOpen)
+            {
+                <div class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md h-[80vh] flex flex-col overflow-hidden">
+                        <header class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                            <h2 class="text-lg font-bold text-gray-800">@ratingProductName Reviews</h2>
+                            <button @onclick="CloseReviewsModal" class="text-gray-500 text-xl font-bold hover:text-gray-700">✕</button>
+                        </header>
+                        <div class="flex-grow overflow-y-auto p-4 bg-white">
+                            @if (!productReviews.Any())
+                            {
+                                <div class="text-center text-gray-500 mt-10">No reviews yet. Be the first to rate!</div>
+                            }
+                            else
+                            {
+                                <ul class="space-y-4">
+                                    @foreach (var review in productReviews.OrderByDescending(r => r.CreatedAt))
+                                    {
+                                        <li class="border-b border-gray-100 pb-3 last:border-0">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <div class="flex text-yellow-400 text-sm">
+                                                    @for (int i = 1; i <= 5; i++)
+                                                    {
+                                                        if (i <= review.Rating) { <span>★</span> } else { <span class="text-gray-300">★</span> }
+                                                    }
+                                                </div>
+                                                <span class="text-xs text-gray-400">@review.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</span>
+                                            </div>
+                                            @if (!string.IsNullOrWhiteSpace(review.Comment))
+                                            {
+                                                <p class="text-sm text-gray-700 mt-1">@review.Comment</p>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
         </div>
     }
 </div>
@@ -251,15 +354,38 @@
     private string orderNote = "";
     private HubConnection? hubConnection;
 
+    private bool isRateModalOpen = false;
+    private Guid ratingProductId;
+    private string ratingProductName = "";
+    private int ratingValue = 0;
+    private string ratingComment = "";
+
+    private bool isReviewsModalOpen = false;
+    private IEnumerable<ReviewDto> productReviews = new List<ReviewDto>();
+        private HashSet<Guid> reviewedProductIds = new();
+
+
     protected override async Task OnInitializedAsync()
     {
+        if (string.IsNullOrEmpty(TableId))
+        {
+            var tables = await TableService.GetTablesAsync();
+            var firstTable = tables.FirstOrDefault();
+
+            if (firstTable != null)
+            {
+                Navigation.NavigateTo($"/{firstTable.Id}", forceLoad: true);
+                return;
+            }
+        }
+
         if (string.IsNullOrEmpty(TableId) || !Guid.TryParse(TableId, out parsedTableId))
         {
             isInvalidUrl = true;
             return;
         }
 
-        products = await ProductService.GetProductsAsync();
+        await LoadProducts();
 
         var table = await TableService.GetTableByIdAsync(parsedTableId);
         if (table != null && table.IsOccupied)
@@ -287,6 +413,11 @@
         });
 
         await hubConnection.StartAsync();
+    }
+
+    private async Task LoadProducts()
+    {
+        products = await ProductService.GetProductsAsync();
     }
 
     private async Task LoadMyOrders()
@@ -396,6 +527,54 @@
         "Delivered" => "bg-gray-100 text-gray-600",
         _ => "bg-gray-100 text-gray-600"
     };
+
+    private void OpenRateModal(Guid productId, string productName)
+    {
+        ratingProductId = productId;
+        ratingProductName = productName;
+        ratingValue = 0;
+        ratingComment = "";
+        isRateModalOpen = true;
+    }
+
+    private void CloseRateModal()
+    {
+        isRateModalOpen = false;
+    }
+
+    private void SetRating(int value)
+    {
+        ratingValue = value;
+    }
+
+    private async Task SubmitReview()
+{
+    if (ratingValue == 0) return;
+
+    var dto = new CreateReviewDto
+    {
+        ProductId = ratingProductId,
+        Rating = ratingValue,
+        Comment = ratingComment
+    };
+
+    await ReviewService.CreateReviewAsync(dto);
+    reviewedProductIds.Add(ratingProductId);
+    await LoadProducts();
+    CloseRateModal();
+}
+
+    private async Task OpenReviewsModal(Guid productId, string productName)
+    {
+        ratingProductName = productName;
+        productReviews = await ReviewService.GetReviewsByProductIdAsync(productId);
+        isReviewsModalOpen = true;
+    }
+
+    private void CloseReviewsModal()
+    {
+        isReviewsModalOpen = false;
+    }
 
     public async ValueTask DisposeAsync()
     {

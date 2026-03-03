@@ -10,6 +10,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:5211/") });
 builder.Services.AddScoped<ProductApiService>();
 builder.Services.AddScoped<OrderApiService>();
-builder.Services.AddScoped<RealTimeOrderEngine.Client.Services.TableApiService>();
+builder.Services.AddScoped<TableApiService>();
+builder.Services.AddScoped<ReviewApiService>();
 
 await builder.Build().RunAsync();
