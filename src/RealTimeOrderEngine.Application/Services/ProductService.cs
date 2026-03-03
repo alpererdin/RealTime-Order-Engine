@@ -32,7 +32,9 @@ public class ProductService
             Name = createdProduct.Name,
             Price = createdProduct.Price,
             CategoryId = createdProduct.CategoryId,
-            IsAvailable = createdProduct.IsAvailable
+            IsAvailable = createdProduct.IsAvailable,
+            AverageRating = 0,
+            ReviewCount = 0
         };
     }
 
@@ -46,7 +48,9 @@ public class ProductService
             Name = p.Name,
             Price = p.Price,
             CategoryId = p.CategoryId,
-            IsAvailable = p.IsAvailable
+            IsAvailable = p.IsAvailable,
+            AverageRating = p.Reviews != null && p.Reviews.Any() ? p.Reviews.Average(r => r.Rating) : 0,
+            ReviewCount = p.Reviews != null ? p.Reviews.Count : 0
         });
     }
 }

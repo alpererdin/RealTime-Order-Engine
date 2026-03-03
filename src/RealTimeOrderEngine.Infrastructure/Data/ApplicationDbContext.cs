@@ -15,6 +15,8 @@ namespace RealTimeOrderEngine.Infrastructure.Data
         public DbSet<Category> Categories { get; set; }
         public DbSet<Table> Tables { get; set; }
 
+        public DbSet<Review> Reviews { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
