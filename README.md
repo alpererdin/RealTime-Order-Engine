@@ -1,2 +1,2 @@
 # RealTime-Order-Engine
-Scalable, Real-Time Order &amp; Session Management Engine (.NET 10, SignalR, Clean Architecture). Domain-agnostic core applicable to Logistics, Manufacturing, and Hospitality.
+Scalable real-time order and session management engine built with .NET 10, SignalR and Clean Architecture.
