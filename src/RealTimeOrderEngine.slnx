@@ -4,4 +4,5 @@
   <Project Path="RealTimeOrderEngine.Client/RealTimeOrderEngine.Client.csproj" />
   <Project Path="RealTimeOrderEngine.Domain/RealTimeOrderEngine.Domain.csproj" />
   <Project Path="RealTimeOrderEngine.Infrastructure/RealTimeOrderEngine.Infrastructure.csproj" />
+  <Project Path="RealTimeOrderEngine.Shared/RealTimeOrderEngine.Shared.csproj" />
 </Solution>

@@ -5,7 +5,7 @@ using RealTimeOrderEngine.Application.Interfaces.Services;
 using RealTimeOrderEngine.Application.Services;
 using RealTimeOrderEngine.Infrastructure.Data;
 using RealTimeOrderEngine.Infrastructure.Repositories;
-
+ 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(options =>
@@ -33,6 +33,8 @@ builder.Services.AddScoped<OrderService>();
 builder.Services.AddTransient<IOrderNotificationService, OrderNotificationService>();
 builder.Services.AddScoped<ITableRepository, TableRepository>();
 builder.Services.AddScoped<ITableService, TableService>();
+builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
 
 builder.Services.AddSignalR();
 
