@@ -8,7 +8,7 @@
 @inject RealTimeOrderEngine.Client.Services.OrderApiService OrderService
 @inject RealTimeOrderEngine.Client.Services.TableApiService TableService
 @inject RealTimeOrderEngine.Client.Services.ReviewApiService ReviewService
-
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject NavigationManager Navigation
 
 @implements IAsyncDisposable
@@ -183,27 +183,41 @@
                                                 <span class="text-sm text-gray-500">@order.OrderDate.ToLocalTime().ToString("HH:mm")</span>
                                                 <span class="px-2 py-1 text-xs font-bold rounded-md @GetStatusBadge(order.Status)">@order.Status</span>
                                             </div>
-                                            <ul class="space-y-2 mb-3">
-                                                @foreach (var item in order.Items)
-                                                {
-                                                    <li class="flex justify-between items-center text-sm text-gray-700">
-                                                        <span><span class="font-bold text-gray-900 mr-1">x@(item.Quantity)</span> @item.ProductName</span>
-                                                        <div class="flex items-center gap-2">
-                                                            <span>@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
-                                                            @if (order.Status == "Served")
-                                                            {
-                                                                if (!reviewedProductIds.Contains(item.ProductId))
-                                                                {
-                                                                    <button @onclick="() => OpenRateModal(item.ProductId, item.ProductName!)" 
-                                                                            class="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200">
-                                                                           Rate
-                                                                    </button>
-                                                                }
-                                                            }
-                                                        </div>
-                                                    </li>
-                                                }
-                                            </ul>
+                                           <ul class="space-y-2 mb-3">
+                                        @foreach (var item in order.Items)
+                                        {
+                                            <li class="flex justify-between items-center text-sm text-gray-700 border-b border-gray-50 pb-2">
+                                                <span><span class="font-bold text-gray-900 mr-1">x@(item.Quantity)</span> @item.ProductName</span>
+                                                <div class="flex items-center gap-2">
+                                                    <span>@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
+                                                    @if (order.Status == "Served")
+                                                    {
+                                                        if (!reviewedProductIds.Contains(item.ProductId))
+                                                        {
+                                                            <button @onclick="() => OpenRateModal(item.ProductId, item.ProductName!)" 
+                                                                    class="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200">
+                                                                    Rate
+                                                            </button>
+                                                        }
+                                                    }
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+
+                                    @{
+                                        var uniqueNotes = order.Items
+                                            .Where(i => !string.IsNullOrWhiteSpace(i.Note))
+                                            .Select(i => i.Note)
+                                            .Distinct();
+                                    }
+                                    @if (uniqueNotes.Any())
+                                    {
+                                        <div class="mb-3 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-sm text-yellow-800 rounded">
+                                            <span class="font-bold block mb-1">Note:</span>
+                                            @string.Join(" | ", uniqueNotes)
+                                        </div>
+                                    }
                                             <div class="text-right font-bold text-gray-900 border-t border-gray-100 pt-2">
                                                 Total: @order.TotalAmount.ToString("C2")
                                             </div>
@@ -386,6 +400,7 @@
         }
 
         await LoadProducts();
+        StateHasChanged(); 
 
         var table = await TableService.GetTableByIdAsync(parsedTableId);
         if (table != null && table.IsOccupied)
@@ -395,11 +410,13 @@
 
         await LoadMyOrders();
 
+        var apiBaseUrl = Configuration["ApiBaseUrl"] ?? "http://localhost:5211";
+
         hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5211/orderhub")
+            .WithUrl($"{apiBaseUrl}/orderhub")
             .WithAutomaticReconnect()
             .Build();
-
+            
         hubConnection.On<object>("OrderStatusChanged", async (_) =>
         {
             await LoadMyOrders();
@@ -561,6 +578,7 @@
     await ReviewService.CreateReviewAsync(dto);
     reviewedProductIds.Add(ratingProductId);
     await LoadProducts();
+    
     CloseRateModal();
 }
 

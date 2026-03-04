@@ -3,6 +3,8 @@
 @using RealTimeOrderEngine.Shared.DTOs.Orders
 @inject RealTimeOrderEngine.Client.Services.OrderApiService OrderService
 @inject NavigationManager Navigation
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
 @implements IAsyncDisposable
 
 <div class="min-h-screen bg-gray-100 p-6">
@@ -141,8 +143,10 @@
 
     private async Task ConnectHub()
     {
+        var apiBaseUrl = Configuration["ApiBaseUrl"] ?? "http://localhost:5211";
+
         hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5211/orderhub")
+            .WithUrl($"{apiBaseUrl}/orderhub")
             .WithAutomaticReconnect()
             .Build();
 

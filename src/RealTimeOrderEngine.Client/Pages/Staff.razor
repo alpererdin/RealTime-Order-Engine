@@ -6,6 +6,8 @@
 @inject NavigationManager Navigation
 @inject RealTimeOrderEngine.Client.Services.TableApiService TableService
 @inject RealTimeOrderEngine.Client.Services.OrderApiService OrderService
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
 @implements IAsyncDisposable
 
 <div class="min-h-screen bg-gray-100 p-6">
@@ -62,15 +64,29 @@
                                 <span class="text-sm text-gray-500">@order.OrderDate.ToLocalTime().ToString("HH:mm:ss")</span>
                                 <span class="px-2 py-1 text-xs font-bold rounded-md @GetStatusBadge(order.Status)">@order.Status</span>
                             </div>
-                            <ul class="space-y-1 mb-3">
-                                @foreach (var item in order.Items)
-                                {
-                                    <li class="flex justify-between text-sm text-gray-700">
-                                        <span><span class="font-bold text-gray-900 mr-1">x@(item.Quantity)</span> @item.ProductName</span>
-                                        <span>@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
-                                    </li>
-                                }
+                            <ul class="space-y-2 mb-3">
+                                    @foreach (var item in order.Items)
+                                    {
+                                        <li class="flex justify-between items-center text-sm text-gray-700 border-b border-gray-50 pb-2">
+                                            <span><span class="font-bold text-gray-900 mr-1">x@(item.Quantity)</span> @item.ProductName</span>
+                                            <span>@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
+                                        </li>
+                                    }
                             </ul>
+
+                                @{
+                                    var uniqueNotes = order.Items
+                                        .Where(i => !string.IsNullOrWhiteSpace(i.Note))
+                                        .Select(i => i.Note)
+                                        .Distinct();
+                                }
+                                @if (uniqueNotes.Any())
+                                {
+                                    <div class="mb-3 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-sm text-yellow-800 rounded">
+                                        <span class="font-bold block mb-1">Note:</span>
+                                        @string.Join(" | ", uniqueNotes)
+                                    </div>
+                                }
                             <div class="flex justify-between items-center border-t border-gray-100 pt-2">
                                 <span class="font-bold text-gray-900">Total: @order.TotalAmount.ToString("C2")</span>
                                 @if (order.Status == "Ready")
@@ -143,8 +159,10 @@
 
     private async Task ConnectHub()
     {
+        var apiBaseUrl = Configuration["ApiBaseUrl"] ?? "http://localhost:5211";
+
         hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5211/orderhub")
+            .WithUrl($"{apiBaseUrl}/orderhub")
             .WithAutomaticReconnect()
             .Build();
 
