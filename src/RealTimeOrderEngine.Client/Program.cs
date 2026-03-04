@@ -7,7 +7,9 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:5211/") });
+var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5211";
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
+
 builder.Services.AddScoped<ProductApiService>();
 builder.Services.AddScoped<OrderApiService>();
 builder.Services.AddScoped<TableApiService>();
