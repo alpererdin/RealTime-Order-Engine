@@ -7,5 +7,6 @@ namespace RealTimeOrderEngine.Domain.Entities
         public required string TableNumber { get; set; }
         public Guid? CurrentSessionId { get; set; }
         public bool IsOccupied { get; set; } = false;
+        public bool IsReviewAllowed { get; set; } = false;
     }
 }
