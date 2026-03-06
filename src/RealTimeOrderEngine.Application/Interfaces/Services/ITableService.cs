@@ -10,4 +10,5 @@ public interface ITableService
     Task<bool> ValidateSessionAsync(Guid tableId, Guid sessionId);
 
     Task<TableDto?> GetTableByIdAsync(Guid id);
+    Task<bool> UpdateReviewPermissionAsync(Guid id, bool isAllowed);
 }

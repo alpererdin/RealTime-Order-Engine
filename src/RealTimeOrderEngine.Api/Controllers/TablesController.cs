@@ -9,10 +9,12 @@ namespace RealTimeOrderEngine.Api.Controllers;
 public class TablesController : ControllerBase
 {
     private readonly ITableService _tableService;
+    private readonly IOrderNotificationService _notificationService;
 
-    public TablesController(ITableService tableService)
+    public TablesController(ITableService tableService, IOrderNotificationService notificationService)
     {
         _tableService = tableService;
+        _notificationService = notificationService;
     }
 
     [HttpGet]
@@ -51,5 +53,16 @@ public class TablesController : ControllerBase
     {
         var isValid = await _tableService.ValidateSessionAsync(id, sessionId);
         return Ok(isValid);
+    }
+
+    [HttpPut("{id}/review-permission")]
+    public async Task<IActionResult> UpdateReviewPermission(Guid id, [FromQuery] bool isAllowed)
+    {
+        var success = await _tableService.UpdateReviewPermissionAsync(id, isAllowed);
+        if (!success) return NotFound();
+
+        await _notificationService.NotifyReviewPermissionChangedAsync(id, isAllowed);
+
+        return NoContent();
     }
 }

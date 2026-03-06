@@ -27,12 +27,17 @@
                     <button @onclick="CloseTableDetail" class="text-blue-500 text-sm font-semibold mb-1 hover:text-blue-700">← Back to Tables</button>
                     <h1 class="text-2xl font-bold text-gray-800">@selectedTable.TableNumber</h1>
                 </div>
-                @if (selectedTable.IsOccupied)
-                {
-                    <button @onclick="() => CloseTable(selectedTable.Id)" class="bg-red-50 text-red-600 font-semibold px-4 py-2 rounded border border-red-200 hover:bg-red-100 transition">
-                        Checkout & Close
-                    </button>
-                }
+               <div class="flex space-x-3">
+                    @if (selectedTable.IsOccupied)
+                    {
+                        <button @onclick="ToggleReviewPermission" class="@(selectedTable.IsReviewAllowed ? "bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100" : "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100") font-semibold px-4 py-2 rounded border transition">
+                            @(selectedTable.IsReviewAllowed ? "Disable Reviews" : "Allow Reviews")
+                        </button>
+                        <button @onclick="() => CloseTable(selectedTable.Id)" class="bg-red-50 text-red-600 font-semibold px-4 py-2 rounded border border-red-200 hover:bg-red-100 transition">
+                            Checkout & Close
+                        </button>
+                    }
+                </div>
             </header>
             
             @if (!string.IsNullOrEmpty(errorMessage))
@@ -182,6 +187,22 @@
             await InvokeAsync(StateHasChanged);
         });
 
+        hubConnection.On<Guid, bool>("ReviewPermissionChanged", async (tableId, isAllowed) =>
+        {
+            var tableInList = tables.FirstOrDefault(t => t.Id == tableId);
+            if (tableInList != null)
+            {
+                tableInList.IsReviewAllowed = isAllowed;
+            }
+            
+            if (selectedTable != null && selectedTable.Id == tableId)
+            {
+                selectedTable.IsReviewAllowed = isAllowed;
+            }
+            
+            await InvokeAsync(StateHasChanged);
+        });
+
         await hubConnection.StartAsync();
     }
 
@@ -249,6 +270,30 @@
         selectedTable = null;
         tableOrders.Clear();
         await LoadTables();
+    }
+    private async Task ToggleReviewPermission()
+    {
+        if (selectedTable != null)
+        {
+            var newValue = !selectedTable.IsReviewAllowed;
+            var success = await TableService.UpdateReviewPermissionAsync(selectedTable.Id, newValue);
+            
+            if (success)
+            {
+                selectedTable.IsReviewAllowed = newValue;
+                var tableInList = tables.FirstOrDefault(t => t.Id == selectedTable.Id);
+                if (tableInList != null)
+                {
+                    tableInList.IsReviewAllowed = newValue;
+                }
+                StateHasChanged();
+            }
+            else
+            {
+                errorMessage = "API istegi basarisiz oldu.";
+                StateHasChanged();
+            }
+        }
     }
 
     private async Task DeliverOrder(Guid orderId)

@@ -47,4 +47,9 @@ public class TableApiService
     {
         return await _httpClient.GetFromJsonAsync<bool>($"api/tables/{id}/validate?sessionId={sessionId}");
     }
+    public async Task<bool> UpdateReviewPermissionAsync(Guid id, bool isAllowed)
+    {
+        var response = await _httpClient.PutAsync($"api/tables/{id}/review-permission?isAllowed={isAllowed}", null);
+        return response.IsSuccessStatusCode;
+    }
 }

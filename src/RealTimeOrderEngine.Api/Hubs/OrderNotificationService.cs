@@ -27,4 +27,8 @@ public class OrderNotificationService : IOrderNotificationService
     {
         await _hubContext.Clients.All.SendAsync("KitchenNotification", message);
     }
+    public async Task NotifyReviewPermissionChangedAsync(Guid tableId, bool isAllowed)
+    {
+        await _hubContext.Clients.All.SendAsync("ReviewPermissionChanged", tableId, isAllowed);
+    }
 }

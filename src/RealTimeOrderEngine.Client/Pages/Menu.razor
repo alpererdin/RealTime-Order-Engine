@@ -190,13 +190,12 @@
                                                 <span><span class="font-bold text-gray-900 mr-1">x@(item.Quantity)</span> @item.ProductName</span>
                                                 <div class="flex items-center gap-2">
                                                     <span>@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
-                                                    @if (order.Status == "Served")
-                                                    {
+                                                   @if (order.Status == "Served" && isReviewAllowed)
+                                                   {
                                                         if (!reviewedProductIds.Contains(item.ProductId))
                                                         {
-                                                            <button @onclick="() => OpenRateModal(item.ProductId, item.ProductName!)" 
-                                                                    class="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200">
-                                                                    Rate
+                                                            <button @onclick="() => OpenRateModal(item.ProductId, item.ProductName!)" class="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200">
+                                                                Rate
                                                             </button>
                                                         }
                                                     }
@@ -231,17 +230,17 @@
             </main>
 
             <nav class="absolute bottom-0 left-0 right-0 max-w-md mx-auto bg-gray-100 border-t border-gray-300 shadow-md flex h-14 z-50">
-                <button @onclick='() => SwitchView("menu")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs @(currentView == "menu" ? "text-blue-600" : "text-gray-500")">
+                <button @onclick='async () => await SwitchView("menu")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs @(currentView == "menu" ? "text-blue-600" : "text-gray-500")">
                     Menu
                 </button>
-                <button @onclick='() => SwitchView("cart")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs relative @(currentView == "cart" ? "text-blue-600" : "text-gray-500")">
+                <button @onclick='async () => await SwitchView("cart")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs relative @(currentView == "cart" ? "text-blue-600" : "text-gray-500")">
                     Cart
                     @if (cart.Any())
                     {
                         <span class="absolute top-1 right-8 bg-red-500 text-white text-[10px] font-semibold w-4 h-4 rounded-full flex items-center justify-center">@cart.Sum(c => c.Quantity)</span>
                     }
                 </button>
-                <button @onclick='() => SwitchView("orders")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs @(currentView == "orders" ? "text-blue-600" : "text-gray-500")">
+                <button @onclick='async () => await SwitchView("orders")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs @(currentView == "orders" ? "text-blue-600" : "text-gray-500")">
                     Orders
                 </button>
             </nav>
@@ -376,7 +375,9 @@
 
     private bool isReviewsModalOpen = false;
     private IEnumerable<ReviewDto> productReviews = new List<ReviewDto>();
-        private HashSet<Guid> reviewedProductIds = new();
+    private HashSet<Guid> reviewedProductIds = new();
+
+    private bool isReviewAllowed = false;
 
 
     protected override async Task OnInitializedAsync()
@@ -429,6 +430,15 @@
             await InvokeAsync(StateHasChanged);
         });
 
+        hubConnection.On<Guid, bool>("ReviewPermissionChanged", async (tableId, isAllowed) =>
+        {
+            if (parsedTableId == tableId)
+            {
+                isReviewAllowed = isAllowed;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+
         await hubConnection.StartAsync();
     }
 
@@ -439,6 +449,12 @@
 
     private async Task LoadMyOrders()
     {
+        var table = await TableService.GetTableByIdAsync(parsedTableId);
+        if (table != null)
+        {
+            isReviewAllowed = table.IsReviewAllowed;
+        }
+
         if (currentSessionId.HasValue)
         {
             var allOrders = await OrderService.GetOrdersAsync();
@@ -471,8 +487,19 @@
 
     private void ClearCart() => cart.Clear();
 
-    private void SwitchView(string view) => currentView = view;
-
+    private async Task SwitchView(string view)
+    {
+        currentView = view;
+        if (view == "orders")
+        {
+            await LoadMyOrders();
+            StateHasChanged(); 
+        }
+        else
+        {
+            StateHasChanged();
+        }
+    }
     private void OpenCheckoutModal() => isCheckoutModalOpen = true;
 
     private void CloseCheckoutModal()

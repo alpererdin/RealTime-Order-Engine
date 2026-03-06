@@ -21,7 +21,8 @@ public class TableService : ITableService
             Id = t.Id,
             TableNumber = t.TableNumber,
             IsOccupied = t.IsOccupied,
-            CurrentSessionId = t.CurrentSessionId
+            CurrentSessionId = t.CurrentSessionId,
+            IsReviewAllowed = t.IsReviewAllowed
         });
     }
 
@@ -39,7 +40,8 @@ public class TableService : ITableService
             Id = table.Id,
             TableNumber = table.TableNumber,
             IsOccupied = table.IsOccupied,
-            CurrentSessionId = table.CurrentSessionId
+            CurrentSessionId = table.CurrentSessionId,
+            IsReviewAllowed = table.IsReviewAllowed
         };
     }
 
@@ -50,6 +52,7 @@ public class TableService : ITableService
 
         table.IsOccupied = false;
         table.CurrentSessionId = null;
+        table.IsReviewAllowed = false;
         await _tableRepository.UpdateAsync(table);
 
         return true;
@@ -62,15 +65,27 @@ public class TableService : ITableService
     }
 
     public async Task<TableDto?> GetTableByIdAsync(Guid id)
-{
-    var table = await _tableRepository.GetByIdAsync(id);
-    if (table == null) return null;
-    return new TableDto
     {
-        Id = table.Id,
-        TableNumber = table.TableNumber,
-        IsOccupied = table.IsOccupied,
-        CurrentSessionId = table.CurrentSessionId
-    };
-}
+        var table = await _tableRepository.GetByIdAsync(id);
+        if (table == null) return null;
+        return new TableDto
+        {
+            Id = table.Id,
+            TableNumber = table.TableNumber,
+            IsOccupied = table.IsOccupied,
+            CurrentSessionId = table.CurrentSessionId,
+            IsReviewAllowed = table.IsReviewAllowed
+        };
+    }
+
+    public async Task<bool> UpdateReviewPermissionAsync(Guid id, bool isAllowed)
+    {
+        var table = await _tableRepository.GetByIdAsync(id);
+        if (table == null) return false;
+
+        table.IsReviewAllowed = isAllowed;
+        await _tableRepository.UpdateAsync(table);
+
+        return true;
+    }
 }
