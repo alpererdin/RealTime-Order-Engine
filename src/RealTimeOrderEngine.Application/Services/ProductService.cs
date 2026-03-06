@@ -18,6 +18,8 @@ public class ProductService
         var product = new Product
         {
             Name = dto.Name,
+            Description = dto.Description,
+            ImageUrl = dto.ImageUrl,
             Price = dto.Price,
             CategoryId = dto.CategoryId,
             IsAvailable = true,
@@ -30,6 +32,8 @@ public class ProductService
         {
             Id = createdProduct.Id,
             Name = createdProduct.Name,
+            Description = createdProduct.Description,   
+            ImageUrl = createdProduct.ImageUrl, 
             Price = createdProduct.Price,
             CategoryId = createdProduct.CategoryId,
             IsAvailable = createdProduct.IsAvailable,
@@ -46,6 +50,8 @@ public class ProductService
         {
             Id = p.Id,
             Name = p.Name,
+            Description = p.Description,  
+            ImageUrl = p.ImageUrl,   
             Price = p.Price,
             CategoryId = p.CategoryId,
             IsAvailable = p.IsAvailable,

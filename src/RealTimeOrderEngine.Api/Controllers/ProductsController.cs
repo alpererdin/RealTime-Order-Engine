@@ -42,6 +42,8 @@ public class ProductsController : ControllerBase
         if (product == null) return NotFound();
 
         product.Name = dto.Name;
+        product.Description = dto.Description;
+        product.ImageUrl = dto.ImageUrl;
         product.Price = dto.Price;
         product.CategoryId = dto.CategoryId;
         product.IsAvailable = dto.IsAvailable;

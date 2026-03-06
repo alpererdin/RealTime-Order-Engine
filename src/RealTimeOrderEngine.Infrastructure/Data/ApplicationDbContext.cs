@@ -42,16 +42,8 @@ namespace RealTimeOrderEngine.Infrastructure.Data
                 .WithOne(p => p.Category)
                 .HasForeignKey(p => p.CategoryId);
 
-            modelBuilder.Entity<Staff>().HasData(new Staff
-                {
-                    Id = Guid.Parse("f9162985-783a-441d-9e1e-257a07565432"),
-                    Name = "Admin Staff",
-                    PinCode = "1234",
-                    Role = "Admin",
-                    IsActive = true,
-                    IsDeleted = false
-                });
-                        }
+            
+        }
         
     }
 }
