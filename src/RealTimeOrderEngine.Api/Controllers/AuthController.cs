@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RealTimeOrderEngine.Application.Interfaces.Services;
 using RealTimeOrderEngine.Shared.DTOs.Auth;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace RealTimeOrderEngine.Api.Controllers;
 
@@ -15,8 +16,9 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
-    [HttpPost("login")]
-    public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginDto loginDto)
+[HttpPost("login")]
+[EnableRateLimiting("login")]
+public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginDto loginDto)
     {
         if (string.IsNullOrWhiteSpace(loginDto.PinCode))         
             return BadRequest(new { message = "PIN code cannot be empty" });
