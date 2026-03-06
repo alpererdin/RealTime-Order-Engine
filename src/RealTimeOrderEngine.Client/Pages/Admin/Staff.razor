@@ -1,0 +1,107 @@
+@page "/admin/staff"
+@using RealTimeOrderEngine.Shared.DTOs.Staff
+@inject RealTimeOrderEngine.Client.Services.StaffApiService StaffService
+
+<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold text-gray-800">Staff Management</h2>
+        <button @onclick="ShowCreateForm" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add New Staff</button>
+    </div>
+
+    @if (showForm)
+    {
+        <div class="mb-6 p-4 border border-gray-200 rounded bg-gray-50 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="block mb-1 text-sm font-medium">Name</label>
+                <input @bind="newStaff.Name" placeholder="Full Name" class="w-full p-2 border rounded" />
+            </div>
+            <div>
+                <label class="block mb-1 text-sm font-medium">PIN Code</label>
+                <input @bind="newStaff.PinCode" placeholder="4 Digit PIN" class="w-full p-2 border rounded" />
+            </div>
+            <div>
+                <label class="block mb-1 text-sm font-medium">Role</label>
+                <select @bind="newStaff.Role" class="w-full p-2 border rounded">
+                    <option value="Waiter">Waiter</option>
+                    <option value="Admin">Admin</option>
+                </select>
+            </div>
+            <div class="md:col-span-3 flex space-x-2 mt-2">
+                <button @onclick="SaveStaff" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Save</button>
+                <button @onclick="CancelForm" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">Cancel</button>
+            </div>
+        </div>
+    }
+
+    <table class="w-full text-left border-collapse">
+        <thead>
+            <tr class="bg-gray-100 border-b">
+                <th class="p-3">Name</th>
+                <th class="p-3">Role</th>
+                <th class="p-3">Status</th>
+                <th class="p-3">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in staffList)
+            {
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-3 font-medium">@s.Name</td>
+                    <td class="p-3">@s.Role</td>
+                    <td class="p-3">
+                        <span class="@(s.IsActive ? "text-green-600" : "text-red-600")">
+                            @(s.IsActive ? "Active" : "Inactive")
+                        </span>
+                    </td>
+                    <td class="p-3">
+                        <button @onclick="() => DeleteStaff(s.Id)" class="text-red-600 hover:underline">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<StaffDto> staffList = new();
+    private bool showForm = false;
+    private CreateStaffDto newStaff = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStaff();
+    }
+
+    private async Task LoadStaff()
+    {
+        var result = await StaffService.GetStaffAsync();
+        staffList = result.ToList();
+    }
+
+    private void ShowCreateForm()
+    {
+        newStaff = new CreateStaffDto { Role = "Waiter" };
+        showForm = true;
+    }
+
+    private async Task SaveStaff()
+    {
+        if (!string.IsNullOrWhiteSpace(newStaff.Name) && !string.IsNullOrWhiteSpace(newStaff.PinCode))
+        {
+            await StaffService.CreateStaffAsync(newStaff);
+            showForm = false;
+            await LoadStaff();
+        }
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+    }
+
+    private async Task DeleteStaff(Guid id)
+    {
+        await StaffService.DeleteStaffAsync(id);
+        await LoadStaff();
+    }
+}

@@ -47,9 +47,22 @@ public class TableApiService
     {
         return await _httpClient.GetFromJsonAsync<bool>($"api/tables/{id}/validate?sessionId={sessionId}");
     }
+
     public async Task<bool> UpdateReviewPermissionAsync(Guid id, bool isAllowed)
     {
         var response = await _httpClient.PutAsync($"api/tables/{id}/review-permission?isAllowed={isAllowed}", null);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> CreateTableAsync(CreateTableDto dto)
+    {
+        var response = await _httpClient.PostAsJsonAsync("api/tables", dto);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> DeleteTableAsync(Guid id)
+    {
+        var response = await _httpClient.DeleteAsync($"api/tables/{id}");
         return response.IsSuccessStatusCode;
     }
 }

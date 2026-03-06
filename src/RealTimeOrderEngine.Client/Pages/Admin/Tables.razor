@@ -1,0 +1,86 @@
+@page "/admin/tables"
+@using RealTimeOrderEngine.Shared.DTOs.Tables
+@inject RealTimeOrderEngine.Client.Services.TableApiService TableService
+
+<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold text-gray-800">Tables Management</h2>
+        <button @onclick="ShowCreateForm" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add New Table</button>
+    </div>
+
+    @if (showForm)
+    {
+        <div class="mb-6 p-4 border border-gray-200 rounded bg-gray-50 flex items-end space-x-4">
+            <div class="flex-1">
+                <label class="block mb-1 text-sm font-medium">Table Number</label>
+                <input @bind="newTable.TableNumber" placeholder="Ornek T-01" class="w-full p-2 border rounded" />
+            </div>
+            <button @onclick="SaveTable" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Save</button>
+            <button @onclick="CancelForm" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">Cancel</button>
+        </div>
+    }
+
+    <table class="w-full text-left border-collapse">
+        <thead>
+            <tr class="bg-gray-100 border-b">
+                <th class="p-3">Table Number</th>
+                <th class="p-3">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var t in tables)
+            {
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-3 font-medium">@t.TableNumber</td>
+                    <td class="p-3">
+                        <button @onclick="() => DeleteTable(t.Id)" class="text-red-600 hover:underline">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<TableDto> tables = new();
+    private bool showForm = false;
+    private CreateTableDto newTable = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTables();
+    }
+
+    private async Task LoadTables()
+    {
+        var result = await TableService.GetTablesAsync();
+        tables = result.ToList();
+    }
+
+    private void ShowCreateForm()
+    {
+        newTable = new CreateTableDto();
+        showForm = true;
+    }
+
+    private async Task SaveTable()
+    {
+        if (!string.IsNullOrWhiteSpace(newTable.TableNumber))
+        {
+            await TableService.CreateTableAsync(newTable);
+            showForm = false;
+            await LoadTables();
+        }
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+    }
+
+    private async Task DeleteTable(Guid id)
+    {
+        await TableService.DeleteTableAsync(id);
+        await LoadTables();
+    }
+}

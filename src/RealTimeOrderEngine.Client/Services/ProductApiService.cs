@@ -16,4 +16,22 @@ public class ProductApiService
     {
         return await _httpClient.GetFromJsonAsync<IEnumerable<ProductDto>>("api/products") ?? new List<ProductDto>();
     }
+
+    public async Task<bool> CreateProductAsync(CreateProductDto dto)
+    {
+        var response = await _httpClient.PostAsJsonAsync("api/products", dto);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> UpdateProductAsync(Guid id, UpdateProductDto dto)
+    {
+        var response = await _httpClient.PutAsJsonAsync($"api/products/{id}", dto);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> DeleteProductAsync(Guid id)
+    {
+        var response = await _httpClient.DeleteAsync($"api/products/{id}");
+        return response.IsSuccessStatusCode;
+    }
 }
