@@ -32,89 +32,107 @@
         <div class="max-w-md mx-auto h-full flex flex-col bg-gray-50 shadow-xl relative overflow-hidden">
             <main class="flex-grow overflow-hidden relative">
                 @if (currentView == "menu")
-                {
-                    <div class="absolute inset-0 flex flex-col bg-gray-50">
-                        <div class="px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-20 h-[58px] flex-none">
-                            <div class="relative h-full flex items-center justify-between">
-                                <h1 class="text-xl font-bold text-gray-800">Menu</h1>
-                                <button @onclick="OpenTableSwitchModal" class="text-xs text-gray-400 border border-gray-200 px-2 py-1 rounded-lg hover:bg-gray-50">
-                                    Switch Table
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="flex-grow overflow-y-auto px-4 pb-24 pt-4">
-                            @if (!products.Any())
+{
+    <div class="absolute inset-0 flex flex-col bg-gray-50">
+        <div class="px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-20 h-[58px] flex-none">
+            <div class="relative h-full flex items-center justify-between">
+                <h1 class="text-xl font-bold text-gray-800">Menu</h1>
+                <button @onclick="OpenTableSwitchModal" class="text-xs text-gray-400 border border-gray-200 px-2 py-1 rounded-lg hover:bg-gray-50">
+                    Switch Table
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-grow overflow-y-auto px-4 pb-24 pt-4">
+            @if (!products.Any())
+            {
+                <div class="text-center text-gray-500 py-8">Loading menu...</div>
+            }
+            else
+            {
+                <div class="grid grid-cols-1 gap-4">
+                    @foreach (var product in products)
+                    {
+                        <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex gap-4">
+                            @if (!string.IsNullOrEmpty(product.ImageUrl))
                             {
-                                <div class="text-center text-gray-500 py-8">Loading menu...</div>
+                                <img src="@product.ImageUrl" class="w-24 h-24 object-cover rounded-lg flex-shrink-0" alt="@product.Name" />
                             }
                             else
                             {
-                                <ul class="divide-y divide-gray-200 min-h-[100px]">
-                                    @foreach (var product in products)
-                                    {
-                                        <li class="py-4 flex justify-between items-center">
-                                            <div>
-                                                <h3 class="text-lg font-medium text-gray-900">@product.Name</h3>
-                                                
-                                                <div class="flex items-center mt-1 cursor-pointer" @onclick="() => OpenReviewsModal(product.Id, product.Name)">
-                                                    <div class="flex text-yellow-400 text-xs">
-                                                        @for (int i = 1; i <= 5; i++)
-                                                        {
-                                                            if (i <= Math.Round(product.AverageRating))
-                                                            {
-                                                                <span>★</span>
-                                                            }
-                                                            else
-                                                            {
-                                                                <span class="text-gray-300">★</span>
-                                                            }
-                                                        }
-                                                    </div>
-                                                    <span class="text-gray-400 text-xs ml-2">(@product.ReviewCount reviews)</span>
-                                                </div>
+                                <div class="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 text-2xl">
+                                    🍽️
+                                </div>
+                            }
 
-                                                <p class="text-sm text-gray-500 mt-1">@product.Price.ToString("C2")</p>
-                                            </div>
+                            <div class="flex-grow flex flex-col justify-between">
+                                <div>
+                                    <div class="flex justify-between items-start">
+                                        <h3 class="text-lg font-bold text-gray-900 leading-tight">@product.Name</h3>
+                                        <p class="text-blue-600 font-bold">@product.Price.ToString("C2")</p>
+                                    </div>
+                                    
+                                    <p class="text-sm text-gray-500 line-clamp-2 mt-1">@product.Description</p>
 
-                                            @{
-                                                var cartItem = cart.FirstOrDefault(c => c.ProductId == product.Id);
-                                            }
-
-                                            @if (cartItem == null)
+                                    <div class="flex items-center mt-2 cursor-pointer" @onclick="() => OpenReviewsModal(product.Id, product.Name)">
+                                        <div class="flex text-yellow-400 text-xs">
+                                            @for (int i = 1; i <= 5; i++)
                                             {
-                                                <button @onclick="() => AddToCart(product)" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-100 transition">
-                                                    Add
+                                                if (i <= Math.Round(product.AverageRating))
+                                                {
+                                                    <span>★</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-gray-300">★</span>
+                                                }
+                                            }
+                                        </div>
+                                        <span class="text-gray-400 text-[10px] ml-1">(@product.ReviewCount reviews)</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-end mt-2">
+                                    @{
+                                        var cartItem = cart.FirstOrDefault(c => c.ProductId == product.Id);
+                                    }
+
+                                    @if (cartItem == null)
+                                    {
+                                        <button @onclick="() => AddToCart(product)" class="bg-blue-600 text-white px-6 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+                                            Add
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <div class="flex items-center gap-3 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200">
+                                            @if (cartItem.Quantity == 1)
+                                            {
+                                                <button @onclick="() => RemoveFromCart(product)" class="text-red-500 hover:text-red-700 transition font-bold px-1">
+                                                    ✕
                                                 </button>
                                             }
                                             else
                                             {
-                                                <div class="flex items-center gap-2">
-                                                    @if (cartItem.Quantity == 1)
-                                                    {
-                                                        <button @onclick="() => RemoveFromCart(product)" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition">
-                                                            x
-                                                        </button>
-                                                    }
-                                                    else
-                                                    {
-                                                        <button @onclick="() => DecreaseQuantity(product)" class="w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-bold text-lg">
-                                                            -
-                                                        </button>
-                                                    }
-                                                    <span class="w-5 text-center font-semibold text-gray-800">@cartItem.Quantity</span>
-                                                    <button @onclick="() => AddToCart(product)" class="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition font-bold text-lg">
-                                                        +
-                                                    </button>
-                                                </div>
+                                                <button @onclick="() => DecreaseQuantity(product)" class="text-gray-600 hover:text-black transition font-bold px-1">
+                                                    −
+                                                </button>
                                             }
-                                        </li>
+                                            <span class="text-sm font-bold text-gray-800 min-w-[1rem] text-center">@cartItem.Quantity</span>
+                                            <button @onclick="() => AddToCart(product)" class="text-blue-600 hover:text-blue-800 transition font-bold px-1">
+                                                +
+                                            </button>
+                                        </div>
                                     }
-                                </ul>
-                            }
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                }
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
 
                 @if (currentView == "cart")
                 {
