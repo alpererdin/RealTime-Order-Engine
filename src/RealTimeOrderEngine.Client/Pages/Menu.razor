@@ -302,7 +302,7 @@
                         <footer class="border-t border-gray-200 p-3 bg-gray-50">
                             <div class="grid grid-cols-2 gap-2">
                                 <button @onclick="CloseCheckoutModal" class="bg-gray-200 text-gray-800 font-semibold rounded-lg py-2 hover:bg-gray-300">Cancel</button>
-                                <button @onclick="ConfirmOrder" class="bg-blue-500 text-white font-semibold rounded-lg py-2 hover:bg-blue-600">Confirm Order</button>
+                                <button @onclick="ConfirmOrder" disabled="@isSubmitting" class="bg-blue-500 text-white font-semibold rounded-lg py-2 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"> @(isSubmitting ? "Placing Order..." : "Confirm Order")</button>
                             </div>
                         </footer>
                     </div>
@@ -410,6 +410,8 @@
 
     private bool isTableSwitchModalOpen = false;
     private List<TableDto> allTables = new();
+
+    private bool isSubmitting = false;
 
     private async Task OpenTableSwitchModal()
     {
@@ -558,43 +560,48 @@
 
     private async Task ConfirmOrder()
     {
-        var table = await TableService.GetTableByIdAsync(parsedTableId);
-        if (table == null) return;
+         if (isSubmitting) return;
+        isSubmitting = true;
+        try {
+            var table = await TableService.GetTableByIdAsync(parsedTableId);
+            if (table == null) return;
 
-        if (!table.IsOccupied || table.CurrentSessionId == null)
-        {
-            var openedTable = await TableService.OpenTableAsync(parsedTableId);
-            if (openedTable != null)
+            if (!table.IsOccupied || table.CurrentSessionId == null)
             {
-                currentSessionId = openedTable.CurrentSessionId;
+                var openedTable = await TableService.OpenTableAsync(parsedTableId);
+                if (openedTable != null)
+                {
+                    currentSessionId = openedTable.CurrentSessionId;
+                }
+            }
+            else
+            {
+                currentSessionId = table.CurrentSessionId;
+            }
+
+            var createOrderDto = new CreateOrderDto
+            {
+                TableId = parsedTableId,
+                SessionId = currentSessionId,
+                Items = cart.Select(c => new CreateOrderItemDto
+                {
+                    ProductId = c.ProductId,
+                    Quantity = c.Quantity,
+                    Note = orderNote
+                }).ToList()
+            };
+
+            var result = await OrderService.CreateOrderAsync(createOrderDto);
+            if (result != null)
+            {
+                cart.Clear();
+                isCheckoutModalOpen = false;
+                orderNote = "";
+                currentView = "orders";
+                await LoadMyOrders();
             }
         }
-        else
-        {
-            currentSessionId = table.CurrentSessionId;
-        }
-
-        var createOrderDto = new CreateOrderDto
-        {
-            TableId = parsedTableId,
-            SessionId = currentSessionId,
-            Items = cart.Select(c => new CreateOrderItemDto
-            {
-                ProductId = c.ProductId,
-                Quantity = c.Quantity,
-                Note = orderNote
-            }).ToList()
-        };
-
-        var result = await OrderService.CreateOrderAsync(createOrderDto);
-        if (result != null)
-        {
-            cart.Clear();
-            isCheckoutModalOpen = false;
-            orderNote = "";
-            currentView = "orders";
-            await LoadMyOrders();
-        }
+    finally { isSubmitting = false; } 
     }
 
     private void DecreaseQuantity(ProductDto product)
