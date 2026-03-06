@@ -4,6 +4,8 @@
 @inject RealTimeOrderEngine.Client.Services.OrderApiService OrderService
 @inject NavigationManager Navigation
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject RealTimeOrderEngine.Client.Services.AuthApiService AuthApiService
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthStateProvider
 
 @implements IAsyncDisposable
 
@@ -41,6 +43,10 @@
                     <button @onclick="Logout" class="text-red-500 font-semibold hover:text-red-700">Logout</button>
                 </div>
             </header>
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <p class="text-red-500 text-sm text-center mt-2">@errorMessage</p>
+            }
 
             @if (!orders.Any())
             {
@@ -118,20 +124,34 @@
     private List<OrderDto> orders = new();
     private HubConnection? hubConnection;
     private bool isConnected => hubConnection?.State == HubConnectionState.Connected;
-
-    protected override Task OnInitializedAsync()
+    private string errorMessage = "";
+    protected override async Task OnInitializedAsync()
     {
-        return Task.CompletedTask;
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity is not null && user.Identity.IsAuthenticated)
+        {
+            isAuthenticated = true;
+            await LoadOrders();
+            await ConnectHub();
+        }
     }
 
-   private async Task VerifyPin()
+    private async Task VerifyPin()
     {
-        if (pinCode == "1234")
+        errorMessage = "";
+        var success = await AuthApiService.Login(pinCode);
+        if (success)
         {
             isAuthenticated = true;
             await LoadOrders();
             await ConnectHub();
             StateHasChanged();
+        }
+        else
+        {
+            errorMessage = "Invalid PIN code. Please try again.";
         }
     }
 

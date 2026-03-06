@@ -4,14 +4,18 @@
 @using RealTimeOrderEngine.Shared.DTOs.Products
 @using RealTimeOrderEngine.Shared.DTOs.Orders
 @using RealTimeOrderEngine.Shared.DTOs.Reviews
+@using RealTimeOrderEngine.Shared.DTOs.Tables
 @inject RealTimeOrderEngine.Client.Services.ProductApiService ProductService
 @inject RealTimeOrderEngine.Client.Services.OrderApiService OrderService
 @inject RealTimeOrderEngine.Client.Services.TableApiService TableService
 @inject RealTimeOrderEngine.Client.Services.ReviewApiService ReviewService
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage
+
 @inject NavigationManager Navigation
 
 @implements IAsyncDisposable
+
 
 <div class="fixed inset-0 w-full h-full bg-gray-50 text-gray-900 select-none overflow-hidden z-[60]">
     @if (isInvalidUrl)
@@ -31,8 +35,11 @@
                 {
                     <div class="absolute inset-0 flex flex-col bg-gray-50">
                         <div class="px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-20 h-[58px] flex-none">
-                            <div class="relative h-full flex items-center">
+                            <div class="relative h-full flex items-center justify-between">
                                 <h1 class="text-xl font-bold text-gray-800">Menu</h1>
+                                <button @onclick="OpenTableSwitchModal" class="text-xs text-gray-400 border border-gray-200 px-2 py-1 rounded-lg hover:bg-gray-50">
+                                    Switch Table
+                                </button>
                             </div>
                         </div>
                         
@@ -229,6 +236,28 @@
                 }
             </main>
 
+            @if (isTableSwitchModalOpen)
+                {
+                    <div class="fixed inset-0 bg-black bg-opacity-60 z-[70] flex items-end justify-center">
+                        <div class="bg-white rounded-t-2xl w-full max-w-md p-4 pb-8">
+                            <h2 class="text-lg font-bold text-gray-800 mb-4 text-center">Select Table</h2>
+                            <div class="grid grid-cols-3 gap-3">
+                                @foreach (var table in allTables)
+                                {
+                                    <button @onclick="() => SwitchTable(table.Id)"
+                                        class="p-3 rounded-xl border-2 text-center @(table.Id == parsedTableId ? "border-blue-500 bg-blue-50" : "border-gray-200") @(table.IsOccupied ? "bg-green-50" : "")">
+                                        <div class="font-bold text-gray-800">@table.TableNumber</div>
+                                        <div class="text-xs @(table.IsOccupied ? "text-green-600" : "text-gray-400")">
+                                            @(table.IsOccupied ? "Occupied" : "Available")
+                                        </div>
+                                    </button>
+                                }
+                            </div>
+                            <button @onclick="() => isTableSwitchModalOpen = false" class="w-full mt-4 py-2 text-gray-500 text-sm">Cancel</button>
+                        </div>
+                    </div>
+                }
+
             <nav class="absolute bottom-0 left-0 right-0 max-w-md mx-auto bg-gray-100 border-t border-gray-300 shadow-md flex h-14 z-50">
                 <button @onclick='async () => await SwitchView("menu")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs @(currentView == "menu" ? "text-blue-600" : "text-gray-500")">
                     Menu
@@ -379,6 +408,21 @@
 
     private bool isReviewAllowed = false;
 
+    private bool isTableSwitchModalOpen = false;
+    private List<TableDto> allTables = new();
+
+    private async Task OpenTableSwitchModal()
+    {
+        var result = await TableService.GetTablesAsync();
+        allTables = result.OrderBy(t => t.TableNumber).ToList();
+        isTableSwitchModalOpen = true;
+    }
+
+    private void SwitchTable(Guid tableId)
+    {
+        isTableSwitchModalOpen = false;
+        Navigation.NavigateTo($"/{tableId}", forceLoad: true);
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -448,23 +492,27 @@
     }
 
     private async Task LoadMyOrders()
+{
+    var table = await TableService.GetTableByIdAsync(parsedTableId);
+    if (table != null)
     {
-        var table = await TableService.GetTableByIdAsync(parsedTableId);
-        if (table != null)
-        {
-            isReviewAllowed = table.IsReviewAllowed;
-        }
-
-        if (currentSessionId.HasValue)
-        {
-            var allOrders = await OrderService.GetOrdersAsync();
-            myOrders = allOrders.Where(o => o.TableId == parsedTableId && o.SessionId == currentSessionId).ToList();
-        }
-        else
-        {
-            myOrders = new List<OrderDto>();
-        }
+        isReviewAllowed = table.IsReviewAllowed;
     }
+
+    
+    var stored = await _localStorage.GetItemAsync<List<Guid>>($"reviewed_{parsedTableId}");
+    reviewedProductIds = stored != null ? new HashSet<Guid>(stored) : new HashSet<Guid>();
+
+    if (currentSessionId.HasValue)
+    {
+        var allOrders = await OrderService.GetOrdersAsync();
+        myOrders = allOrders.Where(o => o.TableId == parsedTableId && o.SessionId == currentSessionId).ToList();
+    }
+    else
+    {
+        myOrders = new List<OrderDto>();
+    }
+}
 
     private void AddToCart(ProductDto product)
     {
@@ -592,22 +640,24 @@
     }
 
     private async Task SubmitReview()
-{
-    if (ratingValue == 0) return;
-
-    var dto = new CreateReviewDto
     {
-        ProductId = ratingProductId,
-        Rating = ratingValue,
-        Comment = ratingComment
-    };
+        if (ratingValue == 0) return;
 
-    await ReviewService.CreateReviewAsync(dto);
-    reviewedProductIds.Add(ratingProductId);
-    await LoadProducts();
-    
-    CloseRateModal();
-}
+        var dto = new CreateReviewDto
+        {
+            ProductId = ratingProductId,
+            Rating = ratingValue,
+            Comment = ratingComment
+        };
+
+        await ReviewService.CreateReviewAsync(dto);
+        reviewedProductIds.Add(ratingProductId);
+
+        await _localStorage.SetItemAsync($"reviewed_{parsedTableId}", reviewedProductIds.ToList());
+
+        await LoadProducts();
+        CloseRateModal();
+    }
 
     private async Task OpenReviewsModal(Guid productId, string productName)
     {

@@ -8,6 +8,9 @@
 @inject RealTimeOrderEngine.Client.Services.OrderApiService OrderService
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
+@inject RealTimeOrderEngine.Client.Services.AuthApiService AuthApiService
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthStateProvider
+
 @implements IAsyncDisposable
 
 <div class="min-h-screen bg-gray-100 p-6">
@@ -154,11 +157,17 @@
 
     private async Task VerifyPin()
     {
-        if (pinCode == "1234")
+        errorMessage = "";
+        var success = await AuthApiService.Login(pinCode);
+        if (success)
         {
             isAuthenticated = true;
             await LoadTables();
             await ConnectHub();
+        }
+        else
+        {
+            errorMessage = "Invalid PIN code. Please try again.";
         }
     }
 
@@ -206,8 +215,9 @@
         await hubConnection.StartAsync();
     }
 
-    private void Logout()
+    private async Task Logout()
     {
+        await AuthApiService.Logout();
         isAuthenticated = false;
         pinCode = "";
         selectedTable = null;
@@ -217,13 +227,15 @@
     private async Task LoadTables()
     {
         var result = await TableService.GetTablesAsync();
-        tables = result.ToList();
-        
+        tables = result
+            .OrderByDescending(t => t.IsOccupied)
+            .ThenBy(t => t.TableNumber)
+            .ToList();
+
         if (selectedTable != null)
         {
             selectedTable = tables.FirstOrDefault(t => t.Id == selectedTable.Id);
         }
-        
         StateHasChanged();
     }
 
@@ -317,5 +329,17 @@
     {
         if (hubConnection is not null)
             await hubConnection.DisposeAsync();
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity is not null && user.Identity.IsAuthenticated)
+        {
+            isAuthenticated = true;
+            await LoadTables();
+            await ConnectHub();
+        }
     }
 }
