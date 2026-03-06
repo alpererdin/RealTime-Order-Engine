@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using RealTimeOrderEngine.Application.Interfaces.Services;
 using RealTimeOrderEngine.Shared.DTOs.Tables;
+using Microsoft.AspNetCore.Authorization;
+using RealTimeOrderEngine.Infrastructure.Data;
+using RealTimeOrderEngine.Domain.Entities;
 
 namespace RealTimeOrderEngine.Api.Controllers;
 
@@ -10,11 +13,13 @@ public class TablesController : ControllerBase
 {
     private readonly ITableService _tableService;
     private readonly IOrderNotificationService _notificationService;
+    private readonly ApplicationDbContext _context;
 
-    public TablesController(ITableService tableService, IOrderNotificationService notificationService)
+    public TablesController(ITableService tableService, IOrderNotificationService notificationService, ApplicationDbContext context)
     {
         _tableService = tableService;
         _notificationService = notificationService;
+        _context = context;
     }
 
     [HttpGet]
@@ -64,5 +69,33 @@ public class TablesController : ControllerBase
         await _notificationService.NotifyReviewPermissionChangedAsync(id, isAllowed);
 
         return NoContent();
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> CreateTable([FromBody] CreateTableDto dto)
+    {
+        var table = new Table
+        {
+            TableNumber = dto.TableNumber
+        };
+
+        _context.Tables.Add(table);
+        await _context.SaveChangesAsync();
+
+        return Ok();
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> DeleteTable(Guid id)
+    {
+        var table = await _context.Tables.FindAsync(id);
+        if (table == null) return NotFound();
+
+        _context.Tables.Remove(table);
+        await _context.SaveChangesAsync();
+
+        return Ok();
     }
 }
