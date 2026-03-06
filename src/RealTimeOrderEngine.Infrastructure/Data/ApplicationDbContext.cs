@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RealTimeOrderEngine.Domain.Entities;
+using RealTimeOrderEngine.Infrastructure.Data.Configurations;
 
 namespace RealTimeOrderEngine.Infrastructure.Data
 {
@@ -14,12 +15,19 @@ namespace RealTimeOrderEngine.Infrastructure.Data
         public DbSet<Product> Products { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Table> Tables { get; set; }
-
         public DbSet<Review> Reviews { get; set; }
+        public DbSet<Staff> Staffs => Set<Staff>();
 
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+        
+            optionsBuilder.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.ApplyConfiguration(new StaffConfiguration());
 
             modelBuilder.Entity<OrderItem>()
                 .Property(oi => oi.UnitPrice)
@@ -33,6 +41,17 @@ namespace RealTimeOrderEngine.Infrastructure.Data
                 .HasMany(c => c.Products)
                 .WithOne(p => p.Category)
                 .HasForeignKey(p => p.CategoryId);
-        }
+
+            modelBuilder.Entity<Staff>().HasData(new Staff
+                {
+                    Id = Guid.Parse("f9162985-783a-441d-9e1e-257a07565432"),
+                    Name = "Admin Staff",
+                    PinCode = "1234",
+                    Role = "Admin",
+                    IsActive = true,
+                    IsDeleted = false
+                });
+                        }
+        
     }
 }
