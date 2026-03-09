@@ -183,17 +183,19 @@
 
         hubConnection.On<object>("OrderStatusChanged", async (_) =>
         {
+            var currentSelectedId = selectedTable?.Id; 
             await LoadTables();
-            if (selectedTable != null)
-                await LoadTableOrders(selectedTable.Id);
+            if (currentSelectedId.HasValue)
+                await LoadTableOrders(currentSelectedId.Value);
             await InvokeAsync(StateHasChanged);
         });
 
         hubConnection.On<object>("OrderCreated", async (_) =>
         {
+            var currentSelectedId = selectedTable?.Id;
             await LoadTables();
-            if (selectedTable != null)
-                await LoadTableOrders(selectedTable.Id);
+            if (currentSelectedId.HasValue)
+                await LoadTableOrders(currentSelectedId.Value);
             await InvokeAsync(StateHasChanged);
         });
 

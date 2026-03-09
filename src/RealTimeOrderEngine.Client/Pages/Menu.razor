@@ -215,13 +215,11 @@
                                                 <span><span class="font-bold text-gray-900 mr-1">x@(item.Quantity)</span> @item.ProductName</span>
                                                 <div class="flex items-center gap-2">
                                                     <span>@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
-                                                   @if (order.Status == "Served" && isReviewAllowed)
-                                                   {
-                                                        if (!reviewedProductIds.Contains(item.ProductId))
+                                                    @if (order.Status == "Served" && isReviewAllowed)
+                                                    {
+                                                        if (!reviewedItems.Contains($"{order.Id}_{item.ProductId}"))
                                                         {
-                                                            <button @onclick="() => OpenRateModal(item.ProductId, item.ProductName!)" class="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200">
-                                                                Rate
-                                                            </button>
+                                                            <button @onclick="() => OpenRateModal(item.ProductId, item.ProductName!, order.Id)" class="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200"> Rate </button>
                                                         }
                                                     }
                                                 </div>
@@ -422,7 +420,7 @@
 
     private bool isReviewsModalOpen = false;
     private IEnumerable<ReviewDto> productReviews = new List<ReviewDto>();
-    private HashSet<Guid> reviewedProductIds = new();
+    private HashSet<string> reviewedItems = new();
 
     private bool isReviewAllowed = false;
 
@@ -430,7 +428,7 @@
     private List<TableDto> allTables = new();
 
     private bool isSubmitting = false;
-
+    private Guid currentOrderId;
     private async Task OpenTableSwitchModal()
     {
         var result = await TableService.GetTablesAsync();
@@ -503,6 +501,16 @@
             }
         });
 
+        hubConnection.On<Guid, Guid>("ReviewSubmitted", async (orderId, productId) =>
+        {
+            var key = $"{orderId}_{productId}";
+            if (!reviewedItems.Contains(key))
+            {
+                reviewedItems.Add(key);
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+
         await hubConnection.StartAsync();
     }
 
@@ -512,27 +520,37 @@
     }
 
     private async Task LoadMyOrders()
-{
-    var table = await TableService.GetTableByIdAsync(parsedTableId);
-    if (table != null)
     {
-        isReviewAllowed = table.IsReviewAllowed;
-    }
+        var table = await TableService.GetTableByIdAsync(parsedTableId);
+        if (table != null)
+        {
+            isReviewAllowed = table.IsReviewAllowed;
+        }
 
-    
-    var stored = await _localStorage.GetItemAsync<List<Guid>>($"reviewed_{parsedTableId}");
-    reviewedProductIds = stored != null ? new HashSet<Guid>(stored) : new HashSet<Guid>();
-
-    if (currentSessionId.HasValue)
-    {
-        var allOrders = await OrderService.GetOrdersAsync();
-        myOrders = allOrders.Where(o => o.TableId == parsedTableId && o.SessionId == currentSessionId).ToList();
+        if (currentSessionId.HasValue)
+        {
+            var allOrders = await OrderService.GetOrdersAsync();
+            myOrders = allOrders.Where(o => o.TableId == parsedTableId && o.SessionId == currentSessionId).ToList();
+            
+            reviewedItems.Clear();
+            foreach (var order in myOrders)
+            {
+                var stored = await _localStorage.GetItemAsync<List<Guid>>($"reviewed_{order.Id}");
+                if (stored != null)
+                {
+                    foreach (var id in stored)
+                    {
+                        reviewedItems.Add($"{order.Id}_{id}");
+                    }
+                }
+            }
+        }
+        else
+        {
+            myOrders = new List<OrderDto>();
+            reviewedItems.Clear();
+        }
     }
-    else
-    {
-        myOrders = new List<OrderDto>();
-    }
-}
 
     private void AddToCart(ProductDto product)
     {
@@ -645,10 +663,11 @@
         _ => "bg-gray-100 text-gray-600"
     };
 
-    private void OpenRateModal(Guid productId, string productName)
+    private void OpenRateModal(Guid productId, string productName, Guid orderId)
     {
         ratingProductId = productId;
         ratingProductName = productName;
+        currentOrderId = orderId;
         ratingValue = 0;
         ratingComment = "";
         isRateModalOpen = true;
@@ -666,24 +685,27 @@
 
     private async Task SubmitReview()
     {
-        if (ratingValue == 0) return;
+        if (ratingValue == 0 || currentOrderId == Guid.Empty) return;
 
         var dto = new CreateReviewDto
         {
             ProductId = ratingProductId,
+            OrderId = currentOrderId,
             Rating = ratingValue,
             Comment = ratingComment
         };
 
         await ReviewService.CreateReviewAsync(dto);
-        reviewedProductIds.Add(ratingProductId);
+        
+        reviewedItems.Add($"{currentOrderId}_{ratingProductId}");
 
-        await _localStorage.SetItemAsync($"reviewed_{parsedTableId}", reviewedProductIds.ToList());
+        var stored = await _localStorage.GetItemAsync<List<Guid>>($"reviewed_{currentOrderId}") ?? new List<Guid>();
+        stored.Add(ratingProductId);
+        await _localStorage.SetItemAsync($"reviewed_{currentOrderId}", stored);
 
         await LoadProducts();
         CloseRateModal();
     }
-
     private async Task OpenReviewsModal(Guid productId, string productName)
     {
         ratingProductName = productName;
