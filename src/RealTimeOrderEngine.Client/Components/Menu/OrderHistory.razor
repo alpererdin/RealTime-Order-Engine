@@ -1,0 +1,80 @@
+@using RealTimeOrderEngine.Shared.DTOs.Orders
+
+<div class="absolute inset-0 flex flex-col bg-gray-50">
+    <div class="px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-20 h-[58px] flex-none">
+        <h1 class="text-xl font-bold text-gray-800">My Orders</h1>
+    </div>
+    <div class="flex-grow overflow-y-auto px-4 pt-4 pb-24">
+        @if (!Orders.Any())
+        {
+            <div class="flex flex-col items-center justify-center text-center p-6 mt-12">
+                <p class="text-gray-500">Your past orders will appear here.</p>
+            </div>
+        }
+        else
+        {
+            <div class="space-y-4">
+                @foreach (var order in Orders.OrderByDescending(o => o.OrderDate))
+                {
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                        <div class="flex justify-between items-center mb-3 border-b border-gray-100 pb-2">
+                            <span class="text-sm text-gray-500">@order.OrderDate.ToLocalTime().ToString("HH:mm")</span>
+                            <span class="px-2 py-1 text-xs font-bold rounded-md @GetStatusBadge(order.Status)">@order.Status</span>
+                        </div>
+                        <ul class="space-y-2 mb-3">
+                            @foreach (var item in order.Items)
+                            {
+                                <li class="flex justify-between items-center text-sm text-gray-700 border-b border-gray-50 pb-2">
+                                    <span><span class="font-bold text-gray-900 mr-1">x @item.Quantity</span> @item.ProductName</span>
+                                    <div class="flex items-center gap-2">
+                                        <span>@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
+                                        @if (order.Status == "Served" && IsReviewAllowed)
+                                        {
+                                            if (!ReviewedItems.Contains($"{order.Id}_{item.ProductId}"))
+                                            {
+                                                <button @onclick="() => OnRate.InvokeAsync((item.ProductId, item.ProductName ?? string.Empty, order.Id))" class="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200"> Rate </button>
+                                            }
+                                        }
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+
+                        @{
+                            var uniqueNotes = order.Items
+                                .Where(i => !string.IsNullOrWhiteSpace(i.Note))
+                                .Select(i => i.Note)
+                                .Distinct();
+                        }
+                        @if (uniqueNotes.Any())
+                        {
+                            <div class="mb-3 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-sm text-yellow-800 rounded">
+                                <span class="font-bold block mb-1">Note:</span>
+                                @string.Join(" | ", uniqueNotes)
+                            </div>
+                        }
+                        <div class="text-right font-bold text-gray-900 border-t border-gray-100 pt-2">
+                            Total: @order.TotalAmount.ToString("C2")
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<OrderDto> Orders { get; set; } = new();
+    [Parameter] public bool IsReviewAllowed { get; set; }
+    [Parameter] public HashSet<string> ReviewedItems { get; set; } = new();
+    [Parameter] public EventCallback<(Guid ProductId, string ProductName, Guid OrderId)> OnRate { get; set; }
+
+    private string GetStatusBadge(string? status) => status switch
+    {
+        "Pending" => "bg-red-50 text-red-600",
+        "Preparing" => "bg-blue-50 text-blue-600",
+        "Ready" => "bg-green-50 text-green-600",
+        "Delivered" => "bg-gray-100 text-gray-600",
+        _ => "bg-gray-100 text-gray-600"
+    };
+}

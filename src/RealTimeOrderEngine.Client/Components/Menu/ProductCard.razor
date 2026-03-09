@@ -1,0 +1,81 @@
+@using RealTimeOrderEngine.Shared.DTOs.Products
+
+<div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex gap-4">
+    @if (!string.IsNullOrEmpty(Product.ImageUrl))
+    {
+        <img src="@Product.ImageUrl" class="w-24 h-24 object-cover rounded-lg flex-shrink-0" alt="@Product.Name" />
+    }
+    else
+    {
+        <div class="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold text-gray-400">
+            NO IMAGE
+        </div>
+    }
+
+    <div class="flex-grow flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-start">
+                <h3 class="text-lg font-bold text-gray-900 leading-tight">@Product.Name</h3>
+                <p class="text-blue-600 font-bold">@Product.Price.ToString("C2")</p>
+            </div>
+            
+            <p class="text-sm text-gray-500 line-clamp-2 mt-1">@Product.Description</p>
+
+            <div class="flex items-center mt-2 cursor-pointer" @onclick="() => OnOpenReviews.InvokeAsync(Product)">
+                <div class="flex text-yellow-400 text-xs">
+                    @for (int i = 1; i <= 5; i++)
+                    {
+                        if (i <= Math.Round(Product.AverageRating))
+                        {
+                            <span>★</span>
+                        }
+                        else
+                        {
+                            <span class="text-gray-300">★</span>
+                        }
+                    }
+                </div>
+                <span class="text-gray-400 text-[10px] ml-1">@Product.ReviewCount reviews</span>
+            </div>
+        </div>
+
+        <div class="flex justify-end mt-2">
+            @if (Quantity == 0)
+            {
+                <button @onclick="() => OnAdd.InvokeAsync(Product)" class="bg-blue-600 text-white px-6 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+                    Add
+                </button>
+            }
+            else
+            {
+                <div class="flex items-center gap-3 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200">
+                    @if (Quantity == 1)
+                    {
+                        <button @onclick="() => OnRemove.InvokeAsync(Product)" class="text-red-500 hover:text-red-700 transition font-bold px-1">
+                            ✕
+                        </button>
+                    }
+                    else
+                    {
+                        <button @onclick="() => OnDecrease.InvokeAsync(Product)" class="text-gray-600 hover:text-black transition font-bold px-1">
+                            −
+                        </button>
+                    }
+                    <span class="text-sm font-bold text-gray-800 min-w-[1rem] text-center">@Quantity</span>
+                    <button @onclick="() => OnAdd.InvokeAsync(Product)" class="text-blue-600 hover:text-blue-800 transition font-bold px-1">
+                        +
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public ProductDto Product { get; set; } = default!;
+    [Parameter] public int Quantity { get; set; }
+    [Parameter] public EventCallback<ProductDto> OnAdd { get; set; }
+    [Parameter] public EventCallback<ProductDto> OnDecrease { get; set; }
+    [Parameter] public EventCallback<ProductDto> OnRemove { get; set; }
+    [Parameter] public EventCallback<ProductDto> OnOpenReviews { get; set; }
+}

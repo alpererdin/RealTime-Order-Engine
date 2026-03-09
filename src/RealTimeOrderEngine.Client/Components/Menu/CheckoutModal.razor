@@ -1,0 +1,42 @@
+@using RealTimeOrderEngine.Shared.DTOs.Orders
+
+<div class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden">
+        <header class="p-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-800 text-center">Confirm Your Order</h2>
+        </header>
+        <div class="px-4 py-4">
+            <div class="mb-4 bg-gray-50 rounded-lg border border-gray-200 divide-y divide-gray-200">
+            @foreach (var item in CartItems)
+            {
+                <div class="flex justify-between items-center px-3 py-2 text-sm">
+                    <span class="text-gray-700">@item.ProductName <span class="text-gray-400">x@(item.Quantity)</span></span>
+                    <span class="font-semibold text-gray-800">@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
+                </div>
+            }
+            <div class="flex justify-between items-center px-3 py-2">
+                <span class="font-bold text-gray-800">Total</span>
+                <span class="font-bold text-blue-600">@CartItems.Sum(x => x.Quantity * x.UnitPrice).ToString("C2")</span>
+            </div>
+        </div>
+
+        <label class="block text-sm font-medium text-gray-700 mb-1">Add a note</label>
+        <textarea @bind="localNote" rows="3" class="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., allergies..."></textarea>
+        </div>
+        <footer class="border-t border-gray-200 p-3 bg-gray-50">
+            <div class="grid grid-cols-2 gap-2">
+                <button @onclick="OnCancel" class="bg-gray-200 text-gray-800 font-semibold rounded-lg py-2 hover:bg-gray-300">Cancel</button>
+                <button @onclick="() => OnConfirm.InvokeAsync(localNote)" disabled="@IsSubmitting" class="bg-blue-500 text-white font-semibold rounded-lg py-2 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"> @(IsSubmitting ? "Placing Order..." : "Confirm Order")</button>
+            </div>
+        </footer>
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<OrderItemDto> CartItems { get; set; } = new();
+    [Parameter] public bool IsSubmitting { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback<string> OnConfirm { get; set; }
+
+    private string localNote = "";
+}

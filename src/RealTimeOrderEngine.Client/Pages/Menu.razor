@@ -5,17 +5,15 @@
 @using RealTimeOrderEngine.Shared.DTOs.Orders
 @using RealTimeOrderEngine.Shared.DTOs.Reviews
 @using RealTimeOrderEngine.Shared.DTOs.Tables
+@using RealTimeOrderEngine.Client.Components.Menu
 @inject RealTimeOrderEngine.Client.Services.ProductApiService ProductService
 @inject RealTimeOrderEngine.Client.Services.OrderApiService OrderService
 @inject RealTimeOrderEngine.Client.Services.TableApiService TableService
 @inject RealTimeOrderEngine.Client.Services.ReviewApiService ReviewService
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject Blazored.LocalStorage.ILocalStorageService _localStorage
-
 @inject NavigationManager Navigation
-
 @implements IAsyncDisposable
-
 
 <div class="fixed inset-0 w-full h-full bg-gray-50 text-gray-900 select-none overflow-hidden z-[60]">
     @if (isInvalidUrl)
@@ -32,366 +30,89 @@
         <div class="max-w-md mx-auto h-full flex flex-col bg-gray-50 shadow-xl relative overflow-hidden">
             <main class="flex-grow overflow-hidden relative">
                 @if (currentView == "menu")
-{
-    <div class="absolute inset-0 flex flex-col bg-gray-50">
-        <div class="px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-20 h-[58px] flex-none">
-            <div class="relative h-full flex items-center justify-between">
-                <h1 class="text-xl font-bold text-gray-800">Menu</h1>
-                <button @onclick="OpenTableSwitchModal" class="text-xs text-gray-400 border border-gray-200 px-2 py-1 rounded-lg hover:bg-gray-50">
-                    Switch Table
-                </button>
-            </div>
-        </div>
-
-        <div class="flex-grow overflow-y-auto px-4 pb-24 pt-4">
-            @if (!products.Any())
-            {
-                <div class="text-center text-gray-500 py-8">Loading menu...</div>
-            }
-            else
-            {
-                <div class="grid grid-cols-1 gap-4">
-                    @foreach (var product in products)
-                    {
-                        <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex gap-4">
-                            @if (!string.IsNullOrEmpty(product.ImageUrl))
-                            {
-                                <img src="@product.ImageUrl" class="w-24 h-24 object-cover rounded-lg flex-shrink-0" alt="@product.Name" />
-                            }
-                            else
-                            {
-                                <div class="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 text-2xl">
-                                    🍽️
-                                </div>
-                            }
-
-                            <div class="flex-grow flex flex-col justify-between">
-                                <div>
-                                    <div class="flex justify-between items-start">
-                                        <h3 class="text-lg font-bold text-gray-900 leading-tight">@product.Name</h3>
-                                        <p class="text-blue-600 font-bold">@product.Price.ToString("C2")</p>
-                                    </div>
-                                    
-                                    <p class="text-sm text-gray-500 line-clamp-2 mt-1">@product.Description</p>
-
-                                    <div class="flex items-center mt-2 cursor-pointer" @onclick="() => OpenReviewsModal(product.Id, product.Name)">
-                                        <div class="flex text-yellow-400 text-xs">
-                                            @for (int i = 1; i <= 5; i++)
-                                            {
-                                                if (i <= Math.Round(product.AverageRating))
-                                                {
-                                                    <span>★</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-gray-300">★</span>
-                                                }
-                                            }
-                                        </div>
-                                        <span class="text-gray-400 text-[10px] ml-1">(@product.ReviewCount reviews)</span>
-                                    </div>
-                                </div>
-
-                                <div class="flex justify-end mt-2">
-                                    @{
-                                        var cartItem = cart.FirstOrDefault(c => c.ProductId == product.Id);
-                                    }
-
-                                    @if (cartItem == null)
-                                    {
-                                        <button @onclick="() => AddToCart(product)" class="bg-blue-600 text-white px-6 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
-                                            Add
-                                        </button>
-                                    }
-                                    else
-                                    {
-                                        <div class="flex items-center gap-3 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200">
-                                            @if (cartItem.Quantity == 1)
-                                            {
-                                                <button @onclick="() => RemoveFromCart(product)" class="text-red-500 hover:text-red-700 transition font-bold px-1">
-                                                    ✕
-                                                </button>
-                                            }
-                                            else
-                                            {
-                                                <button @onclick="() => DecreaseQuantity(product)" class="text-gray-600 hover:text-black transition font-bold px-1">
-                                                    −
-                                                </button>
-                                            }
-                                            <span class="text-sm font-bold text-gray-800 min-w-[1rem] text-center">@cartItem.Quantity</span>
-                                            <button @onclick="() => AddToCart(product)" class="text-blue-600 hover:text-blue-800 transition font-bold px-1">
-                                                +
-                                            </button>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-    </div>
-}
-
-                @if (currentView == "cart")
                 {
                     <div class="absolute inset-0 flex flex-col bg-gray-50">
                         <div class="px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-20 h-[58px] flex-none">
-                            <h1 class="text-xl font-bold text-gray-800">My Cart</h1>
+                            <div class="relative h-full flex items-center justify-between">
+                                <h1 class="text-xl font-bold text-gray-800">Menu</h1>
+                                <button @onclick="OpenTableSwitchModal" class="text-xs text-gray-400 border border-gray-200 px-2 py-1 rounded-lg hover:bg-gray-50">
+                                    Switch Table
+                                </button>
+                            </div>
                         </div>
 
-                        <div class="flex-grow overflow-y-auto px-4 pt-4 pb-48">
-                            @if (!cart.Any())
+                        <div class="flex-grow overflow-y-auto px-4 pb-24 pt-4">
+                            @if (!products.Any())
                             {
-                                <div class="flex flex-col items-center justify-center text-center p-6 pb-20">
-                                    <h2 class="text-xl font-semibold text-gray-700 mb-1">Your cart is empty</h2>
-                                </div>
+                                <div class="text-center text-gray-500 py-8">Loading menu...</div>
                             }
                             else
                             {
-                                <ul class="divide-y divide-gray-200">
-                                    @foreach (var item in cart)
+                                <div class="grid grid-cols-1 gap-4">
+                                    @foreach (var product in products)
                                     {
-                                        <li class="py-4 flex justify-between items-center">
-                                            <div>
-                                                <h3 class="text-md font-medium text-gray-900">@item.ProductName</h3>
-                                                <p class="text-sm text-gray-500">@item.Quantity x @item.UnitPrice.ToString("C2")</p>
-                                            </div>
-                                            <div class="text-right font-semibold">
-                                                @((item.Quantity * item.UnitPrice).ToString("C2"))
-                                            </div>
-                                        </li>
+                                        <ProductCard Product="product"
+                                                     Quantity="GetCartQuantity(product.Id)"
+                                                     OnAdd="AddToCart"
+                                                     OnDecrease="DecreaseQuantity"
+                                                     OnRemove="RemoveFromCart"
+                                                     OnOpenReviews="OpenReviewsModalHandler" />
                                     }
-                                </ul>
+                                </div>
                             }
                         </div>
-
-                        @if (cart.Any())
-                        {
-                            <div class="absolute bottom-14 left-0 right-0 max-w-md mx-auto p-4 border-t border-gray-200 bg-white shadow-lg z-30">
-                                <div class="flex justify-between items-center mb-4">
-                                    <span class="text-xl font-bold text-gray-800">Total:</span>
-                                    <span class="text-2xl font-bold text-blue-600">@cart.Sum(x => x.Quantity * x.UnitPrice).ToString("C2")</span>
-                                </div>
-                                <button @onclick="OpenCheckoutModal" class="w-full bg-blue-500 text-white font-semibold rounded-lg py-3 text-lg hover:bg-blue-600 transition-colors">
-                                    Proceed to Checkout
-                                </button>
-                                <button @onclick="ClearCart" class="w-full mt-3 bg-red-50 text-red-600 font-semibold rounded-lg py-2 text-base hover:bg-red-100 transition-colors">
-                                    Clear Cart
-                                </button>
-                            </div>
-                        }
                     </div>
+                }
+
+                @if (currentView == "cart")
+                {
+                    <CartSummary CartItems="cart"
+                                 OnCheckout="OpenCheckoutModal"
+                                 OnClear="ClearCart" />
                 }
 
                 @if (currentView == "orders")
                 {
-                    <div class="absolute inset-0 flex flex-col bg-gray-50">
-                        <div class="px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-20 h-[58px] flex-none">
-                            <h1 class="text-xl font-bold text-gray-800">My Orders</h1>
-                        </div>
-                        <div class="flex-grow overflow-y-auto px-4 pt-4 pb-24">
-                            @if (!myOrders.Any())
-                            {
-                                <div class="flex flex-col items-center justify-center text-center p-6 mt-12">
-                                    <p class="text-gray-500">Your past orders will appear here.</p>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="space-y-4">
-                                    @foreach (var order in myOrders.OrderByDescending(o => o.OrderDate))
-                                    {
-                                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                                            <div class="flex justify-between items-center mb-3 border-b border-gray-100 pb-2">
-                                                <span class="text-sm text-gray-500">@order.OrderDate.ToLocalTime().ToString("HH:mm")</span>
-                                                <span class="px-2 py-1 text-xs font-bold rounded-md @GetStatusBadge(order.Status)">@order.Status</span>
-                                            </div>
-                                           <ul class="space-y-2 mb-3">
-                                        @foreach (var item in order.Items)
-                                        {
-                                            <li class="flex justify-between items-center text-sm text-gray-700 border-b border-gray-50 pb-2">
-                                                <span><span class="font-bold text-gray-900 mr-1">x@(item.Quantity)</span> @item.ProductName</span>
-                                                <div class="flex items-center gap-2">
-                                                    <span>@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
-                                                    @if (order.Status == "Served" && isReviewAllowed)
-                                                    {
-                                                        if (!reviewedItems.Contains($"{order.Id}_{item.ProductId}"))
-                                                        {
-                                                            <button @onclick="() => OpenRateModal(item.ProductId, item.ProductName!, order.Id)" class="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200"> Rate </button>
-                                                        }
-                                                    }
-                                                </div>
-                                            </li>
-                                        }
-                                    </ul>
-
-                                    @{
-                                        var uniqueNotes = order.Items
-                                            .Where(i => !string.IsNullOrWhiteSpace(i.Note))
-                                            .Select(i => i.Note)
-                                            .Distinct();
-                                    }
-                                    @if (uniqueNotes.Any())
-                                    {
-                                        <div class="mb-3 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-sm text-yellow-800 rounded">
-                                            <span class="font-bold block mb-1">Note:</span>
-                                            @string.Join(" | ", uniqueNotes)
-                                        </div>
-                                    }
-                                            <div class="text-right font-bold text-gray-900 border-t border-gray-100 pt-2">
-                                                Total: @order.TotalAmount.ToString("C2")
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    </div>
+                    <OrderHistory Orders="myOrders"
+                                  IsReviewAllowed="isReviewAllowed"
+                                  ReviewedItems="reviewedItems"
+                                  OnRate="OpenRateModalHandler" />
                 }
             </main>
 
             @if (isTableSwitchModalOpen)
-                {
-                    <div class="fixed inset-0 bg-black bg-opacity-60 z-[70] flex items-end justify-center">
-                        <div class="bg-white rounded-t-2xl w-full max-w-md p-4 pb-8">
-                            <h2 class="text-lg font-bold text-gray-800 mb-4 text-center">Select Table</h2>
-                            <div class="grid grid-cols-3 gap-3">
-                                @foreach (var table in allTables)
-                                {
-                                    <button @onclick="() => SwitchTable(table.Id)"
-                                        class="p-3 rounded-xl border-2 text-center @(table.Id == parsedTableId ? "border-blue-500 bg-blue-50" : "border-gray-200") @(table.IsOccupied ? "bg-green-50" : "")">
-                                        <div class="font-bold text-gray-800">@table.TableNumber</div>
-                                        <div class="text-xs @(table.IsOccupied ? "text-green-600" : "text-gray-400")">
-                                            @(table.IsOccupied ? "Occupied" : "Available")
-                                        </div>
-                                    </button>
-                                }
-                            </div>
-                            <button @onclick="() => isTableSwitchModalOpen = false" class="w-full mt-4 py-2 text-gray-500 text-sm">Cancel</button>
-                        </div>
-                    </div>
-                }
+            {
+                <TableSwitchModal AllTables="allTables"
+                                  CurrentTableId="parsedTableId"
+                                  OnSwitch="SwitchTable"
+                                  OnCancel="CloseTableSwitchModal" />
+            }
 
-            <nav class="absolute bottom-0 left-0 right-0 max-w-md mx-auto bg-gray-100 border-t border-gray-300 shadow-md flex h-14 z-50">
-                <button @onclick='async () => await SwitchView("menu")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs @(currentView == "menu" ? "text-blue-600" : "text-gray-500")">
-                    Menu
-                </button>
-                <button @onclick='async () => await SwitchView("cart")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs relative @(currentView == "cart" ? "text-blue-600" : "text-gray-500")">
-                    Cart
-                    @if (cart.Any())
-                    {
-                        <span class="absolute top-1 right-8 bg-red-500 text-white text-[10px] font-semibold w-4 h-4 rounded-full flex items-center justify-center">@cart.Sum(c => c.Quantity)</span>
-                    }
-                </button>
-                <button @onclick='async () => await SwitchView("orders")' class="flex-1 flex flex-col items-center justify-center pt-2 pb-1 text-xs @(currentView == "orders" ? "text-blue-600" : "text-gray-500")">
-                    Orders
-                </button>
-            </nav>
+            <BottomNav CurrentView="@currentView"
+                       CartItemCount="cart.Sum(c => c.Quantity)"
+                       OnViewChange="SwitchView" />
 
             @if (isCheckoutModalOpen)
             {
-                <div class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden">
-                        <header class="p-4 border-b border-gray-200">
-                            <h2 class="text-lg font-semibold text-gray-800 text-center">Confirm Your Order</h2>
-                        </header>
-                        <div class="px-4 py-4">
-                            <div class="mb-4 bg-gray-50 rounded-lg border border-gray-200 divide-y divide-gray-200">
-                            @foreach (var item in cart)
-                            {
-                                <div class="flex justify-between items-center px-3 py-2 text-sm">
-                                    <span class="text-gray-700">@item.ProductName <span class="text-gray-400">x@(item.Quantity)</span></span>
-                                    <span class="font-semibold text-gray-800">@((item.Quantity * item.UnitPrice).ToString("C2"))</span>
-                                </div>
-                            }
-                            <div class="flex justify-between items-center px-3 py-2">
-                                <span class="font-bold text-gray-800">Total</span>
-                                <span class="font-bold text-blue-600">@cart.Sum(x => x.Quantity * x.UnitPrice).ToString("C2")</span>
-                            </div>
-                        </div>
-
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Add a note</label>
-                        <textarea @bind="orderNote" rows="3" class="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., allergies..."></textarea>
-                        </div>
-                        <footer class="border-t border-gray-200 p-3 bg-gray-50">
-                            <div class="grid grid-cols-2 gap-2">
-                                <button @onclick="CloseCheckoutModal" class="bg-gray-200 text-gray-800 font-semibold rounded-lg py-2 hover:bg-gray-300">Cancel</button>
-                                <button @onclick="ConfirmOrder" disabled="@isSubmitting" class="bg-blue-500 text-white font-semibold rounded-lg py-2 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"> @(isSubmitting ? "Placing Order..." : "Confirm Order")</button>
-                            </div>
-                        </footer>
-                    </div>
-                </div>
+                <CheckoutModal CartItems="cart"
+                               IsSubmitting="isSubmitting"
+                               OnCancel="CloseCheckoutModal"
+                               OnConfirm="ConfirmOrder" />
             }
 
             @if (isRateModalOpen)
             {
-                <div class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden p-6">
-                        <h2 class="text-xl font-bold text-center mb-2">Rate @ratingProductName</h2>
-                        
-                        <div class="flex justify-center gap-2 mb-6 mt-4">
-                            @for (int i = 1; i <= 5; i++)
-                            {
-                                var starValue = i;
-                                <button @onclick="() => SetRating(starValue)" class="text-4xl @(ratingValue >= starValue ? "text-yellow-400" : "text-gray-300") transition-colors">
-                                    ★
-                                </button>
-                            }
-                        </div>
-
-                        <textarea @bind="ratingComment" rows="3" class="w-full p-3 border border-gray-300 rounded-lg text-sm mb-4 focus:ring-blue-500 focus:border-blue-500" placeholder="Tell us what you thought... (optional)"></textarea>
-
-                        <div class="flex gap-3">
-                            <button @onclick="CloseRateModal" class="flex-1 bg-gray-100 text-gray-700 font-semibold rounded-lg py-3 hover:bg-gray-200 transition">Cancel</button>
-                            <button @onclick="SubmitReview" class="flex-1 bg-blue-500 text-white font-semibold rounded-lg py-3 hover:bg-blue-600 transition disabled:opacity-50" disabled="@(ratingValue == 0)">Submit</button>
-                        </div>
-                    </div>
-                </div>
+                <RateProductModal ProductName="@ratingProductName"
+                                  OnCancel="CloseRateModal"
+                                  OnSubmit="SubmitReview" />
             }
 
             @if (isReviewsModalOpen)
             {
-                <div class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md h-[80vh] flex flex-col overflow-hidden">
-                        <header class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                            <h2 class="text-lg font-bold text-gray-800">@ratingProductName Reviews</h2>
-                            <button @onclick="CloseReviewsModal" class="text-gray-500 text-xl font-bold hover:text-gray-700">✕</button>
-                        </header>
-                        <div class="flex-grow overflow-y-auto p-4 bg-white">
-                            @if (!productReviews.Any())
-                            {
-                                <div class="text-center text-gray-500 mt-10">No reviews yet. Be the first to rate!</div>
-                            }
-                            else
-                            {
-                                <ul class="space-y-4">
-                                    @foreach (var review in productReviews.OrderByDescending(r => r.CreatedAt))
-                                    {
-                                        <li class="border-b border-gray-100 pb-3 last:border-0">
-                                            <div class="flex items-center gap-2 mb-1">
-                                                <div class="flex text-yellow-400 text-sm">
-                                                    @for (int i = 1; i <= 5; i++)
-                                                    {
-                                                        if (i <= review.Rating) { <span>★</span> } else { <span class="text-gray-300">★</span> }
-                                                    }
-                                                </div>
-                                                <span class="text-xs text-gray-400">@review.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</span>
-                                            </div>
-                                            @if (!string.IsNullOrWhiteSpace(review.Comment))
-                                            {
-                                                <p class="text-sm text-gray-700 mt-1">@review.Comment</p>
-                                            }
-                                        </li>
-                                    }
-                                </ul>
-                            }
-                        </div>
-                    </div>
-                </div>
+                <ProductReviewsModal ProductName="@ratingProductName"
+                                     Reviews="productReviews"
+                                     OnClose="CloseReviewsModal" />
             }
-
         </div>
     }
 </div>
@@ -409,14 +130,11 @@
     private List<OrderDto> myOrders = new List<OrderDto>();
     private string currentView = "menu";
     private bool isCheckoutModalOpen = false;
-    private string orderNote = "";
     private HubConnection? hubConnection;
 
     private bool isRateModalOpen = false;
     private Guid ratingProductId;
     private string ratingProductName = "";
-    private int ratingValue = 0;
-    private string ratingComment = "";
 
     private bool isReviewsModalOpen = false;
     private IEnumerable<ReviewDto> productReviews = new List<ReviewDto>();
@@ -429,11 +147,17 @@
 
     private bool isSubmitting = false;
     private Guid currentOrderId;
+
     private async Task OpenTableSwitchModal()
     {
         var result = await TableService.GetTablesAsync();
         allTables = result.OrderBy(t => t.TableNumber).ToList();
         isTableSwitchModalOpen = true;
+    }
+
+    private void CloseTableSwitchModal()
+    {
+        isTableSwitchModalOpen = false;
     }
 
     private void SwitchTable(Guid tableId)
@@ -552,6 +276,11 @@
         }
     }
 
+    private int GetCartQuantity(Guid productId)
+    {
+        return cart.FirstOrDefault(c => c.ProductId == productId)?.Quantity ?? 0;
+    }
+
     private void AddToCart(ProductDto product)
     {
         var existingItem = cart.FirstOrDefault(c => c.ProductId == product.Id);
@@ -579,24 +308,20 @@
         if (view == "orders")
         {
             await LoadMyOrders();
-            StateHasChanged(); 
         }
-        else
-        {
-            StateHasChanged();
-        }
+        StateHasChanged();
     }
+
     private void OpenCheckoutModal() => isCheckoutModalOpen = true;
 
     private void CloseCheckoutModal()
     {
         isCheckoutModalOpen = false;
-        orderNote = "";
     }
 
-    private async Task ConfirmOrder()
+    private async Task ConfirmOrder(string note)
     {
-         if (isSubmitting) return;
+        if (isSubmitting) return;
         isSubmitting = true;
         try {
             var table = await TableService.GetTableByIdAsync(parsedTableId);
@@ -623,7 +348,7 @@
                 {
                     ProductId = c.ProductId,
                     Quantity = c.Quantity,
-                    Note = orderNote
+                    Note = note
                 }).ToList()
             };
 
@@ -632,12 +357,11 @@
             {
                 cart.Clear();
                 isCheckoutModalOpen = false;
-                orderNote = "";
                 currentView = "orders";
                 await LoadMyOrders();
             }
         }
-    finally { isSubmitting = false; } 
+        finally { isSubmitting = false; } 
     }
 
     private void DecreaseQuantity(ProductDto product)
@@ -654,22 +378,11 @@
             cart.Remove(existingItem);
     }
 
-    private string GetStatusBadge(string? status) => status switch
+    private void OpenRateModalHandler((Guid ProductId, string ProductName, Guid OrderId) args)
     {
-        "Pending" => "bg-red-50 text-red-600",
-        "Preparing" => "bg-blue-50 text-blue-600",
-        "Ready" => "bg-green-50 text-green-600",
-        "Delivered" => "bg-gray-100 text-gray-600",
-        _ => "bg-gray-100 text-gray-600"
-    };
-
-    private void OpenRateModal(Guid productId, string productName, Guid orderId)
-    {
-        ratingProductId = productId;
-        ratingProductName = productName;
-        currentOrderId = orderId;
-        ratingValue = 0;
-        ratingComment = "";
+        ratingProductId = args.ProductId;
+        ratingProductName = args.ProductName;
+        currentOrderId = args.OrderId;
         isRateModalOpen = true;
     }
 
@@ -678,21 +391,16 @@
         isRateModalOpen = false;
     }
 
-    private void SetRating(int value)
+    private async Task SubmitReview((int Rating, string Comment) args)
     {
-        ratingValue = value;
-    }
-
-    private async Task SubmitReview()
-    {
-        if (ratingValue == 0 || currentOrderId == Guid.Empty) return;
+        if (args.Rating == 0 || currentOrderId == Guid.Empty) return;
 
         var dto = new CreateReviewDto
         {
             ProductId = ratingProductId,
             OrderId = currentOrderId,
-            Rating = ratingValue,
-            Comment = ratingComment
+            Rating = args.Rating,
+            Comment = args.Comment
         };
 
         await ReviewService.CreateReviewAsync(dto);
@@ -706,10 +414,11 @@
         await LoadProducts();
         CloseRateModal();
     }
-    private async Task OpenReviewsModal(Guid productId, string productName)
+
+    private async Task OpenReviewsModalHandler(ProductDto product)
     {
-        ratingProductName = productName;
-        productReviews = await ReviewService.GetReviewsByProductIdAsync(productId);
+        ratingProductName = product.Name;
+        productReviews = await ReviewService.GetReviewsByProductIdAsync(product.Id);
         isReviewsModalOpen = true;
     }
 

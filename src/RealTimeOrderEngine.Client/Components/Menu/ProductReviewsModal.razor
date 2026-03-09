@@ -1,0 +1,45 @@
+@using RealTimeOrderEngine.Shared.DTOs.Reviews
+
+<div class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md h-[80vh] flex flex-col overflow-hidden">
+        <header class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+            <h2 class="text-lg font-bold text-gray-800">@ProductName Reviews</h2>
+            <button @onclick="OnClose" class="text-gray-500 text-xl font-bold hover:text-gray-700">✕</button>
+        </header>
+        <div class="flex-grow overflow-y-auto p-4 bg-white">
+            @if (!Reviews.Any())
+            {
+                <div class="text-center text-gray-500 mt-10">No reviews yet. Be the first to rate!</div>
+            }
+            else
+            {
+                <ul class="space-y-4">
+                    @foreach (var review in Reviews.OrderByDescending(r => r.CreatedAt))
+                    {
+                        <li class="border-b border-gray-100 pb-3 last:border-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <div class="flex text-yellow-400 text-sm">
+                                    @for (int i = 1; i <= 5; i++)
+                                    {
+                                        if (i <= review.Rating) { <span>★</span> } else { <span class="text-gray-300">★</span> }
+                                    }
+                                </div>
+                                <span class="text-xs text-gray-400">@review.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(review.Comment))
+                            {
+                                <p class="text-sm text-gray-700 mt-1">@review.Comment</p>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string ProductName { get; set; } = "";
+    [Parameter] public IEnumerable<ReviewDto> Reviews { get; set; } = new List<ReviewDto>();
+    [Parameter] public EventCallback OnClose { get; set; }
+}
