@@ -31,6 +31,7 @@ public class TableService : ITableService
         var table = await _tableRepository.GetByIdAsync(id);
         if (table == null) return null;
 
+        table.IsReviewAllowed = true;
         table.IsOccupied = true;
         table.CurrentSessionId = Guid.NewGuid();
         await _tableRepository.UpdateAsync(table);

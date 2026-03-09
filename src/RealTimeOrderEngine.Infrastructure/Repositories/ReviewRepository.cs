@@ -28,4 +28,9 @@ public class ReviewRepository : IReviewRepository
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
     }
+    public async Task<bool> ExistsAsync(Guid productId, Guid orderId)
+    {
+        return await _context.Reviews
+            .AnyAsync(r => r.ProductId == productId && r.OrderId == orderId);
+    }
 }

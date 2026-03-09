@@ -14,11 +14,15 @@ public class ReviewService : IReviewService
         _reviewRepository = reviewRepository;
     }
 
-    public async Task<ReviewDto> CreateReviewAsync(CreateReviewDto dto)
+   public async Task<ReviewDto> CreateReviewAsync(CreateReviewDto dto)
     {
+        var exists = await _reviewRepository.ExistsAsync(dto.ProductId, dto.OrderId);
+        if (exists) throw new InvalidOperationException("Already reviewed");
+
         var review = new Review
         {
             ProductId = dto.ProductId,
+            OrderId = dto.OrderId,
             Rating = dto.Rating,
             Comment = dto.Comment,
             Product = null!
