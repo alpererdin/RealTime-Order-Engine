@@ -32,6 +32,11 @@ public class OrderService
             {
                 throw new Exception("Product not found.");
             }
+            
+            if (!product.IsAvailable)  
+            {
+                throw new Exception($"{product.Name} is currently unavailable.");
+            }
 
             if (product.IsStockTracked)
             {
