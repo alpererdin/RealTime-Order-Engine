@@ -12,4 +12,7 @@ public class ProductDto
 
     public double AverageRating { get; set; }
     public int ReviewCount { get; set; }
+
+    public int StockQuantity { get; set; }
+    public bool IsStockTracked { get; set; }
 }

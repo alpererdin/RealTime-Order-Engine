@@ -1,6 +1,7 @@
 using RealTimeOrderEngine.Application.Interfaces.Repositories;
 using RealTimeOrderEngine.Domain.Entities;
 using RealTimeOrderEngine.Shared.DTOs.Products;
+using RealTimeOrderEngine.Shared.DTOs.Stock;
 
 namespace RealTimeOrderEngine.Application.Services;
 
@@ -23,6 +24,8 @@ public class ProductService
             Price = dto.Price,
             CategoryId = dto.CategoryId,
             IsAvailable = true,
+            StockQuantity = dto.StockQuantity,
+            IsStockTracked = dto.IsStockTracked,
             Category = null!
         };
 
@@ -37,6 +40,8 @@ public class ProductService
             Price = createdProduct.Price,
             CategoryId = createdProduct.CategoryId,
             IsAvailable = createdProduct.IsAvailable,
+            StockQuantity = createdProduct.StockQuantity,
+            IsStockTracked = createdProduct.IsStockTracked,
             AverageRating = 0,
             ReviewCount = 0
         };
@@ -55,8 +60,22 @@ public class ProductService
             Price = p.Price,
             CategoryId = p.CategoryId,
             IsAvailable = p.IsAvailable,
+            StockQuantity = p.StockQuantity,
+            IsStockTracked = p.IsStockTracked,
             AverageRating = p.Reviews != null && p.Reviews.Any() ? p.Reviews.Average(r => r.Rating) : 0,
             ReviewCount = p.Reviews != null ? p.Reviews.Count : 0
         });
+    }
+
+    public async Task<bool> UpdateStockAsync(UpdateStockDto dto)
+    {
+        var product = await _productRepository.GetByIdAsync(dto.ProductId);
+        if (product == null) return false;
+
+        product.StockQuantity = dto.StockQuantity;
+        product.IsStockTracked = dto.IsStockTracked;
+
+        await _productRepository.UpdateAsync(product);
+        return true;
     }
 }

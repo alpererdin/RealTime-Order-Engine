@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using Blazored.LocalStorage;
 using RealTimeOrderEngine.Shared.DTOs.Products;
+using RealTimeOrderEngine.Shared.DTOs.Stock;
 
 namespace RealTimeOrderEngine.Client.Services;
 
@@ -46,6 +47,13 @@ public class ProductApiService
     {
         await SetAuthHeader();
         var response = await _httpClient.DeleteAsync($"api/products/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> UpdateStockAsync(UpdateStockDto dto)
+    {
+        await SetAuthHeader();
+        var response = await _httpClient.PatchAsJsonAsync("api/products/stock", dto);
         return response.IsSuccessStatusCode;
     }
 }

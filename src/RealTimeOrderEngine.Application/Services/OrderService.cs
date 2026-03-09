@@ -23,15 +23,33 @@ public class OrderService
     public async Task<OrderDto> CreateOrderAsync(CreateOrderDto dto)
     {
         var orderItems = new List<OrderItem>();
+        
         foreach (var item in dto.Items)
         {
             var product = await _productRepository.GetByIdAsync(item.ProductId);
+            
+            if (product == null)
+            {
+                throw new Exception("Product not found.");
+            }
+
+            if (product.IsStockTracked)
+            {
+                if (product.StockQuantity < item.Quantity)
+                {
+                    throw new Exception("Insufficient stock for product: " + product.Name);
+                }
+                
+                product.StockQuantity -= item.Quantity;
+                await _productRepository.UpdateAsync(product);
+            }
+
             orderItems.Add(new OrderItem
             {
                 ProductId = item.ProductId,
                 Quantity = item.Quantity,
                 Note = item.Note,
-                UnitPrice = product?.Price ?? 0
+                UnitPrice = product.Price
             });
         }
 

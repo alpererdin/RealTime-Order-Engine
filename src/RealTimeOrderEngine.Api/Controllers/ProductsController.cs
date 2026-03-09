@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RealTimeOrderEngine.Application.Services;
 using RealTimeOrderEngine.Shared.DTOs.Products;
+using RealTimeOrderEngine.Shared.DTOs.Stock;
 using Microsoft.AspNetCore.Authorization;
 using RealTimeOrderEngine.Infrastructure.Data;
 
@@ -63,6 +64,15 @@ public class ProductsController : ControllerBase
         product.IsDeleted = true;
         await _context.SaveChangesAsync();
 
+        return Ok();
+    }
+
+    [HttpPatch("stock")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> UpdateStock([FromBody] UpdateStockDto dto)
+    {
+        var result = await _productService.UpdateStockAsync(dto);
+        if (!result) return NotFound();
         return Ok();
     }
 }

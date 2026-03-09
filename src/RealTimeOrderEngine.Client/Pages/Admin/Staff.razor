@@ -1,6 +1,7 @@
 @page "/admin/staff"
 @using RealTimeOrderEngine.Shared.DTOs.Staff
 @inject RealTimeOrderEngine.Client.Services.StaffApiService StaffService
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 
 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
     <div class="flex justify-between items-center mb-4">
@@ -43,19 +44,28 @@
             </tr>
         </thead>
         <tbody>
-            @foreach (var s in staffList)
+            @if (staffList != null && staffList.Any())
             {
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="p-3 font-medium">@s.Name</td>
-                    <td class="p-3">@s.Role</td>
-                    <td class="p-3">
-                        <span class="@(s.IsActive ? "text-green-600" : "text-red-600")">
-                            @(s.IsActive ? "Active" : "Inactive")
-                        </span>
-                    </td>
-                    <td class="p-3">
-                        <button @onclick="() => DeleteStaff(s.Id)" class="text-red-600 hover:underline">Delete</button>
-                    </td>
+                @foreach (var s in staffList)
+                {
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3 font-medium">@s.Name</td>
+                        <td class="p-3">@s.Role</td>
+                        <td class="p-3">
+                            <span class="@(s.IsActive ? "text-green-600" : "text-red-600")">
+                                @(s.IsActive ? "Active" : "Inactive")
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            <button @onclick="() => DeleteStaff(s.Id)" class="text-red-600 hover:underline">Delete</button>
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="4" class="p-3 text-center text-gray-500">No staff members found.</td>
                 </tr>
             }
         </tbody>
@@ -75,7 +85,7 @@
     private async Task LoadStaff()
     {
         var result = await StaffService.GetStaffAsync();
-        staffList = result.ToList();
+        staffList = result != null ? result.ToList() : new List<StaffDto>();
     }
 
     private void ShowCreateForm()
