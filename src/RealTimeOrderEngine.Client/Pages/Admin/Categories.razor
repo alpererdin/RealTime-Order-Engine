@@ -1,0 +1,129 @@
+@page "/admin/categories"
+@using RealTimeOrderEngine.Client.Services
+@inject CategoryApiService CategoryService
+
+<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Categories</h2>
+    </div>
+
+    <div class="flex gap-2 mb-6">
+        <input @bind="newCategoryName" @onkeydown="HandleKeyDown" placeholder="Category name" class="p-2 border rounded flex-grow" />
+        <button @onclick="AddCategory" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add</button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">@errorMessage</div>
+    }
+
+    <table class="w-full text-left border-collapse">
+        <thead>
+            <tr class="bg-gray-100 border-b">
+                <th class="p-3">Name</th>
+                <th class="p-3">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var cat in categories)
+            {
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-3">
+                        @if (editingId == cat.Id)
+                        {
+                            <input @bind="editingName" class="p-1 border rounded w-full" />
+                        }
+                        else
+                        {
+                            <span class="font-medium">@cat.Name</span>
+                        }
+                    </td>
+                    <td class="p-3 space-x-2">
+                        @if (editingId == cat.Id)
+                        {
+                            <button @onclick="SaveEdit" class="text-green-600 hover:underline text-sm">Save</button>
+                            <button @onclick="CancelEdit" class="text-gray-500 hover:underline text-sm">Cancel</button>
+                        }
+                        else
+                        {
+                            <button @onclick="() => StartEdit(cat)" class="text-blue-600 hover:underline text-sm">Edit</button>
+                            <button @onclick="() => DeleteCategory(cat.Id)" class="text-red-600 hover:underline text-sm">Delete</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<CategoryDto> categories = new();
+    private string newCategoryName = "";
+    private string errorMessage = "";
+    private Guid? editingId = null;
+    private string editingName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategories();
+    }
+
+    private async Task LoadCategories()
+    {
+        categories = await CategoryService.GetCategoriesAsync();
+    }
+
+    private async Task AddCategory()
+    {
+        if (string.IsNullOrWhiteSpace(newCategoryName)) return;
+        var success = await CategoryService.CreateCategoryAsync(newCategoryName);
+        if (success)
+        {
+            newCategoryName = "";
+            errorMessage = "";
+            await LoadCategories();
+        }
+        else
+        {
+            errorMessage = "Failed to add category.";
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await AddCategory();
+    }
+
+    private void StartEdit(CategoryDto cat)
+    {
+        editingId = cat.Id;
+        editingName = cat.Name;
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+        editingName = "";
+    }
+
+    private async Task SaveEdit()
+    {
+        if (editingId == null || string.IsNullOrWhiteSpace(editingName)) return;
+        await CategoryService.UpdateCategoryAsync(editingId.Value, editingName);
+        editingId = null;
+        editingName = "";
+        await LoadCategories();
+    }
+
+    private async Task DeleteCategory(Guid id)
+    {
+        var success = await CategoryService.DeleteCategoryAsync(id);
+        if (!success)
+            errorMessage = "Cannot delete: category has products.";
+        else
+        {
+            errorMessage = "";
+            await LoadCategories();
+        }
+    }
+}

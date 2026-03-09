@@ -32,5 +32,6 @@ builder.Services.AddScoped<TableApiService>();
 builder.Services.AddScoped<ReviewApiService>();
 builder.Services.AddScoped<AuthApiService>();
 builder.Services.AddScoped<StaffApiService>();
+builder.Services.AddScoped<CategoryApiService>();
 
 await builder.Build().RunAsync();
