@@ -9,4 +9,6 @@ public class Review : BaseEntity
     public string? Comment { get; set; }
     
     public required Product Product { get; set; }
+
+    public Guid OrderId { get; set; }
 }
