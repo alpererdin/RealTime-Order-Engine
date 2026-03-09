@@ -1,14 +1,9 @@
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using Blazored.LocalStorage;
+using RealTimeOrderEngine.Shared.DTOs.Categories;
 
 namespace RealTimeOrderEngine.Client.Services;
-
-public class CategoryDto
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-}
 
 public class CategoryApiService
 {
