@@ -1,14 +1,15 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0.100 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.101 AS build
 WORKDIR /src
+COPY src .
 
-COPY . .
+RUN dotnet publish RealTimeOrderEngine.Client/RealTimeOrderEngine.Client.csproj -c Release -o /client-out
 
-RUN dotnet publish src/RealTimeOrderEngine.Api/RealTimeOrderEngine.Api.csproj -c Release -o /app/publish
+RUN dotnet publish RealTimeOrderEngine.Api/RealTimeOrderEngine.Api.csproj -c Release -o /app
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
-COPY --from=build /app/publish .
+COPY --from=build /app .
+COPY --from=build /client-out/wwwroot ./wwwroot
 
-ENV ASPNETCORE_URLS=http://+:${PORT:-8080}
-
+ENV ASPNETCORE_URLS=http://+:8080
 ENTRYPOINT ["dotnet", "RealTimeOrderEngine.Api.dll"]

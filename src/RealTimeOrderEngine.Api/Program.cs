@@ -118,7 +118,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<OrderHub>("/orderhub");
-app.UseBlazorFrameworkFiles();
+ 
 app.UseStaticFiles();
 app.MapFallbackToFile("index.html");
 app.Run();
