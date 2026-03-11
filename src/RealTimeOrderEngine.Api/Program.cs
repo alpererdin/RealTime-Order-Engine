@@ -82,6 +82,7 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -117,4 +118,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<OrderHub>("/orderhub");
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+app.MapFallbackToFile("index.html");
 app.Run();

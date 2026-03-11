@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -20,6 +21,7 @@
     <ProjectReference Include="..\RealTimeOrderEngine.Application\RealTimeOrderEngine.Application.csproj" />
     <ProjectReference Include="..\RealTimeOrderEngine.Infrastructure\RealTimeOrderEngine.Infrastructure.csproj" />
     <ProjectReference Include="..\RealTimeOrderEngine.Shared\RealTimeOrderEngine.Shared.csproj" />
+    <ProjectReference Include="..\RealTimeOrderEngine.Client\RealTimeOrderEngine.Client.csproj" />
   </ItemGroup>
 
 </Project>
