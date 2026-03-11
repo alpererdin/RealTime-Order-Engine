@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateResourceUsePreserializedResources>false</GenerateResourceUsePreserializedResources>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,6 +23,10 @@
     <ProjectReference Include="..\RealTimeOrderEngine.Infrastructure\RealTimeOrderEngine.Infrastructure.csproj" />
     <ProjectReference Include="..\RealTimeOrderEngine.Shared\RealTimeOrderEngine.Shared.csproj" />
     <ProjectReference Include="..\RealTimeOrderEngine.Client\RealTimeOrderEngine.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+      <EmbeddedResource Remove="**/*.resx" />
   </ItemGroup>
 
 </Project>
