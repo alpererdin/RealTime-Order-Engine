@@ -118,12 +118,18 @@
             }
         </div>
     }
-    else
+   else
     {
         <div class="max-w-6xl mx-auto">
             <header class="mb-8 bg-white p-4 rounded-lg shadow-sm flex justify-between items-center">
                 <h1 class="text-3xl font-bold text-gray-800">Table Management</h1>
-                <button @onclick="Logout" class="text-red-500 font-semibold hover:text-red-700">Logout</button>
+                <div class="flex items-center space-x-4">
+                    @if (isAdmin)
+                    {
+                        <button @onclick="GoToAdminPanel" class="text-blue-600 font-semibold hover:text-blue-800 transition">Go to Admin Panel</button>
+                    }
+                    <button @onclick="Logout" class="text-red-500 font-semibold hover:text-red-700 transition">Logout</button>
+                </div>
             </header>
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 @foreach (var table in tables)
@@ -154,7 +160,12 @@
     private List<OrderDto> tableOrders = new();
     private HubConnection? hubConnection;
     private string errorMessage = "";
+    private bool isAdmin = false;
 
+    private void GoToAdminPanel()
+    {
+        Navigation.NavigateTo("/admin");
+    }
     private async Task VerifyPin()
     {
         if (string.IsNullOrWhiteSpace(pinCode)) return; 
@@ -163,6 +174,10 @@
         if (success)
         {
             isAuthenticated = true;
+            
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            isAdmin = authState.User.IsInRole("Admin");
+
             await LoadTables();
             await ConnectHub();
         }
@@ -341,6 +356,7 @@
         if (user.Identity is not null && user.Identity.IsAuthenticated)
         {
             isAuthenticated = true;
+            isAdmin = user.IsInRole("Admin");  
             await LoadTables();
             await ConnectHub();
         }
