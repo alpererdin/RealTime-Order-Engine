@@ -8,6 +8,7 @@ using RealTimeOrderEngine.Application.Interfaces.Services;
 using RealTimeOrderEngine.Application.Services;
 using RealTimeOrderEngine.Infrastructure.Data;
 using RealTimeOrderEngine.Infrastructure.Repositories;
+using RealTimeOrderEngine.Domain.Entities;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -23,7 +24,6 @@ builder.Services.AddCors(options =>
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
               .AllowAnyHeader();
-              //.AllowCredentials();
     });
 });
 
@@ -49,7 +49,7 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
-var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]!);
+var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"] ?? "default_secret_key_for_safety_12345");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -104,6 +104,27 @@ builder.Services.AddSignalR();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+
+    if (!db.Set<Staff>().Any())
+    {
+        db.Set<Staff>().Add(new Staff
+        {
+            Id = Guid.NewGuid(),
+            Name = "Admin",
+            Role = "Admin",
+            PinCode = "1234",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            IsDeleted = false
+        });
+        db.SaveChanges();
+    }
+}
+
 app.UseCors("AllowFrontend");
 app.UseRateLimiter();
 
@@ -114,11 +135,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 app.MapHub<OrderHub>("/orderhub");
- 
-app.UseStaticFiles();
 app.MapFallbackToFile("index.html");
+
 app.Run();
