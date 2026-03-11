@@ -14,9 +14,14 @@ public class ReviewRepository : IReviewRepository
         _context = context;
     }
 
+    public async Task<bool> ExistsAsync(Guid productId, Guid orderId)
+    {
+        return await _context.Reviews.AnyAsync(r => r.ProductId == productId && r.OrderId == orderId);
+    }
+
     public async Task<Review> AddAsync(Review review)
     {
-        _context.Reviews.Add(review);
+        await _context.Reviews.AddAsync(review);
         await _context.SaveChangesAsync();
         return review;
     }
@@ -24,13 +29,26 @@ public class ReviewRepository : IReviewRepository
     public async Task<IEnumerable<Review>> GetByProductIdAsync(Guid productId)
     {
         return await _context.Reviews
-            .Where(r => r.ProductId == productId)
-            .OrderByDescending(r => r.CreatedAt)
+            .Where(r => r.ProductId == productId && !r.IsDeleted)
             .ToListAsync();
     }
-    public async Task<bool> ExistsAsync(Guid productId, Guid orderId)
+
+    public async Task<IEnumerable<Review>> GetAllAsync()
     {
         return await _context.Reviews
-            .AnyAsync(r => r.ProductId == productId && r.OrderId == orderId);
+            .Where(r => !r.IsDeleted)
+            .ToListAsync();
+    }
+
+    public async Task<Review?> GetByIdAsync(Guid id)
+    {
+        return await _context.Reviews.FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted);
+    }
+
+    public async Task<bool> DeleteAsync(Review review)
+    {
+        _context.Reviews.Remove(review);
+        await _context.SaveChangesAsync();
+        return true;
     }
 }

@@ -18,8 +18,19 @@ public class ReviewApiService
                ?? Enumerable.Empty<ReviewDto>();
     }
 
+    public async Task<IEnumerable<ReviewDto>> GetAllReviewsAsync()
+    {
+        return await _httpClient.GetFromJsonAsync<IEnumerable<ReviewDto>>("api/reviews") 
+               ?? Enumerable.Empty<ReviewDto>();
+    }
+
     public async Task CreateReviewAsync(CreateReviewDto dto)
     {
         await _httpClient.PostAsJsonAsync("api/reviews", dto);
+    }
+
+    public async Task DeleteReviewAsync(Guid id)
+    {
+        await _httpClient.DeleteAsync($"api/reviews/{id}");
     }
 }

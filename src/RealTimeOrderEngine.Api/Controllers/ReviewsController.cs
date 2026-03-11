@@ -40,4 +40,20 @@ public class ReviewsController : ControllerBase
         var reviews = await _reviewService.GetReviewsByProductIdAsync(productId);
         return Ok(reviews);
     }
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<ReviewDto>>> GetAllReviews()
+    {
+        var reviews = await _reviewService.GetAllReviewsAsync();
+        return Ok(reviews);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteReview(Guid id)
+    {
+        var result = await _reviewService.DeleteReviewAsync(id);
+        if (!result) return NotFound();
+        
+        return NoContent();
+    }
 }

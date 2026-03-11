@@ -14,7 +14,7 @@ public class ReviewService : IReviewService
         _reviewRepository = reviewRepository;
     }
 
-   public async Task<ReviewDto> CreateReviewAsync(CreateReviewDto dto)
+    public async Task<ReviewDto> CreateReviewAsync(CreateReviewDto dto)
     {
         var exists = await _reviewRepository.ExistsAsync(dto.ProductId, dto.OrderId);
         if (exists) throw new InvalidOperationException("Already reviewed");
@@ -52,5 +52,28 @@ public class ReviewService : IReviewService
             Comment = r.Comment,
             CreatedAt = r.CreatedAt
         });
+    }
+
+    public async Task<IEnumerable<ReviewDto>> GetAllReviewsAsync()
+    {
+        var reviews = await _reviewRepository.GetAllAsync();
+
+        return reviews.Select(r => new ReviewDto
+        {
+            Id = r.Id,
+            ProductId = r.ProductId,
+            Rating = r.Rating,
+            Comment = r.Comment,
+            CreatedAt = r.CreatedAt
+        });
+    }
+
+    public async Task<bool> DeleteReviewAsync(Guid id)
+    {
+        var review = await _reviewRepository.GetByIdAsync(id);
+        if (review == null) return false;
+
+        await _reviewRepository.DeleteAsync(review);
+        return true;
     }
 }

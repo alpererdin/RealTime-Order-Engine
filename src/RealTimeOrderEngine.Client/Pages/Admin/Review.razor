@@ -1,0 +1,82 @@
+@page "/admin/reviews"
+@using RealTimeOrderEngine.Shared.DTOs.Reviews
+@using RealTimeOrderEngine.Shared.DTOs.Products
+@inject RealTimeOrderEngine.Client.Services.ReviewApiService ReviewApiService
+@inject RealTimeOrderEngine.Client.Services.ProductApiService ProductApiService
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+    <h2 class="text-2xl font-bold text-gray-800 mb-6">Review Management</h2>
+
+    <table class="w-full text-left border-collapse">
+        <thead>
+            <tr class="bg-gray-100 border-b">
+                <th class="p-3">Date</th>
+                <th class="p-3">Product Name</th>
+                <th class="p-3">Rating</th>
+                <th class="p-3">Comment</th>
+                <th class="p-3">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (reviews != null && reviews.Any())
+            {
+                @foreach (var review in reviews)
+                {
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3 text-sm text-gray-600">@review.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+                        <td class="p-3 font-medium text-gray-800">@GetProductName(review.ProductId)</td>
+                        <td class="p-3">
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">@review.Rating / 5</span>
+                        </td>
+                        <td class="p-3 text-sm">@review.Comment</td>
+                        <td class="p-3">
+                            <button @onclick="() => DeleteReview(review.Id)" class="text-red-600 hover:underline text-sm font-semibold">Delete</button>
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="5" class="p-3 text-center text-gray-500">No reviews found.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<ReviewDto> reviews = new();
+    private List<ProductDto> products = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+        await LoadReviews();
+    }
+
+    private async Task LoadProducts()
+    {
+        var result = await ProductApiService.GetProductsAsync();
+        products = result != null ? result.ToList() : new List<ProductDto>();
+    }
+
+    private async Task LoadReviews()
+    {
+        var result = await ReviewApiService.GetAllReviewsAsync();
+        reviews = result != null ? result.ToList() : new List<ReviewDto>();
+    }
+
+    private async Task DeleteReview(Guid id)
+    {
+        await ReviewApiService.DeleteReviewAsync(id);
+        await LoadReviews();
+    }
+
+    private string GetProductName(Guid productId)
+    {
+        var product = products.FirstOrDefault(p => p.Id == productId);
+        return product != null ? product.Name : "Unknown Product";
+    }
+}

@@ -6,4 +6,6 @@ public interface IReviewService
 {
     Task<ReviewDto> CreateReviewAsync(CreateReviewDto dto);
     Task<IEnumerable<ReviewDto>> GetReviewsByProductIdAsync(Guid productId);
+    Task<IEnumerable<ReviewDto>> GetAllReviewsAsync();
+    Task<bool> DeleteReviewAsync(Guid id);
 }
