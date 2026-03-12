@@ -35,9 +35,19 @@
                         <div class="px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-20 h-[58px] flex-none">
                             <div class="relative h-full flex items-center justify-between">
                                 <h1 class="text-xl font-bold text-gray-800">Menu</h1>
-                                <button @onclick="OpenTableSwitchModal" class="text-xs text-gray-400 border border-gray-200 px-2 py-1 rounded-lg hover:bg-gray-50">
-                                    Switch Table
-                                </button>
+                                <div class="flex items-center gap-2">
+                                   <div class="flex items-center gap-2">
+                                        <button @onclick="OpenTableSwitchModal" class="text-sm text-gray-700 border border-gray-300 bg-white px-3 py-1.5 rounded-lg hover:bg-gray-100 font-medium shadow-sm">
+                                            Switch Table
+                                        </button>
+                                        <a href="/kitchen" target="_blank" class="text-sm text-white bg-orange-600 px-3 py-1.5 rounded-lg hover:bg-orange-700 font-medium shadow-sm">
+                                            Kitchen
+                                        </a>
+                                        <a href="/staff" target="_blank" class="text-sm text-white bg-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-700 font-medium shadow-sm">
+                                            Staff
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
