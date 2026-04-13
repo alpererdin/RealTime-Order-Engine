@@ -2,7 +2,6 @@
 
 A full-stack real-time restaurant order management system built with .NET 10 and Blazor WebAssembly.
 
-Live: https://realtime-order-engine-production.up.railway.app
 
 ---
 
