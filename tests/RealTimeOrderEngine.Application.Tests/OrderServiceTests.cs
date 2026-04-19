@@ -14,6 +14,25 @@ namespace RealTimeOrderEngine.Application.Tests;
 public class OrderServiceTests
 {
     [Fact]
+    public async Task CreateOrderAsync_ThrowsBusinessRuleException_WhenItemListIsEmpty()
+    {
+        var orderRepository = new Mock<IOrderRepository>();
+        var notificationService = new Mock<IOrderNotificationService>();
+        var productRepository = new Mock<IProductRepository>();
+
+        var sut = new OrderService(orderRepository.Object, notificationService.Object, productRepository.Object);
+
+        await Assert.ThrowsAsync<BusinessRuleException>(() => sut.CreateOrderAsync(new CreateOrderDto
+        {
+            TableId = Guid.NewGuid(),
+            Items = []
+        }));
+
+        orderRepository.Verify(x => x.AddAsync(It.IsAny<Order>()), Times.Never);
+        notificationService.Verify(x => x.NotifyOrderCreatedAsync(It.IsAny<OrderCreatedMessage>()), Times.Never);
+    }
+
+    [Fact]
     public async Task CreateOrderAsync_DeductsTrackedStock_AndPublishesNotification()
     {
         var product = new Product
@@ -70,6 +89,75 @@ public class OrderServiceTests
     }
 
     [Fact]
+    public async Task CreateOrderAsync_ThrowsResourceNotFoundException_WhenProductDoesNotExist()
+    {
+        var missingProductId = Guid.NewGuid();
+        var orderRepository = new Mock<IOrderRepository>();
+        var notificationService = new Mock<IOrderNotificationService>();
+        var productRepository = new Mock<IProductRepository>();
+
+        productRepository.Setup(x => x.GetByIdAsync(missingProductId)).ReturnsAsync((Product?)null);
+
+        var sut = new OrderService(orderRepository.Object, notificationService.Object, productRepository.Object);
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(() => sut.CreateOrderAsync(new CreateOrderDto
+        {
+            TableId = Guid.NewGuid(),
+            Items =
+            [
+                new CreateOrderItemDto
+                {
+                    ProductId = missingProductId,
+                    Quantity = 1
+                }
+            ]
+        }));
+
+        orderRepository.Verify(x => x.AddAsync(It.IsAny<Order>()), Times.Never);
+        notificationService.Verify(x => x.NotifyOrderCreatedAsync(It.IsAny<OrderCreatedMessage>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateOrderAsync_ThrowsBusinessRuleException_WhenProductIsUnavailable()
+    {
+        var product = new Product
+        {
+            Id = Guid.NewGuid(),
+            Name = "Soup",
+            Price = 8,
+            CategoryId = Guid.NewGuid(),
+            Category = new Category { Name = "Starter" },
+            StockQuantity = 10,
+            IsStockTracked = false,
+            IsAvailable = false
+        };
+
+        var orderRepository = new Mock<IOrderRepository>();
+        var notificationService = new Mock<IOrderNotificationService>();
+        var productRepository = new Mock<IProductRepository>();
+
+        productRepository.Setup(x => x.GetByIdAsync(product.Id)).ReturnsAsync(product);
+
+        var sut = new OrderService(orderRepository.Object, notificationService.Object, productRepository.Object);
+
+        await Assert.ThrowsAsync<BusinessRuleException>(() => sut.CreateOrderAsync(new CreateOrderDto
+        {
+            TableId = Guid.NewGuid(),
+            Items =
+            [
+                new CreateOrderItemDto
+                {
+                    ProductId = product.Id,
+                    Quantity = 1
+                }
+            ]
+        }));
+
+        orderRepository.Verify(x => x.AddAsync(It.IsAny<Order>()), Times.Never);
+        productRepository.Verify(x => x.UpdateAsync(It.IsAny<Product>()), Times.Never);
+    }
+
+    [Fact]
     public async Task CreateOrderAsync_ThrowsBusinessRuleException_WhenTrackedStockIsInsufficient()
     {
         var product = new Product
@@ -110,6 +198,56 @@ public class OrderServiceTests
     }
 
     [Fact]
+    public async Task CreateOrderAsync_DoesNotUpdateProductStock_WhenTrackingIsDisabled()
+    {
+        var product = new Product
+        {
+            Id = Guid.NewGuid(),
+            Name = "Coffee",
+            Price = 5,
+            CategoryId = Guid.NewGuid(),
+            Category = new Category { Name = "Drinks" },
+            StockQuantity = 50,
+            IsStockTracked = false,
+            IsAvailable = true
+        };
+
+        var orderRepository = new Mock<IOrderRepository>();
+        var notificationService = new Mock<IOrderNotificationService>();
+        var productRepository = new Mock<IProductRepository>();
+
+        productRepository.Setup(x => x.GetByIdAsync(product.Id)).ReturnsAsync(product);
+        orderRepository
+            .Setup(x => x.AddAsync(It.IsAny<Order>()))
+            .ReturnsAsync((Order order) =>
+            {
+                order.Id = Guid.NewGuid();
+                order.Table = new Table { Id = order.TableId, TableNumber = "B4" };
+                return order;
+            });
+
+        var sut = new OrderService(orderRepository.Object, notificationService.Object, productRepository.Object);
+
+        var result = await sut.CreateOrderAsync(new CreateOrderDto
+        {
+            TableId = Guid.NewGuid(),
+            Items =
+            [
+                new CreateOrderItemDto
+                {
+                    ProductId = product.Id,
+                    Quantity = 2
+                }
+            ]
+        });
+
+        Assert.Equal(50, product.StockQuantity);
+        Assert.Equal(10, result.TotalAmount);
+        productRepository.Verify(x => x.UpdateAsync(It.IsAny<Product>()), Times.Never);
+        notificationService.Verify(x => x.NotifyOrderCreatedAsync(It.IsAny<OrderCreatedMessage>()), Times.Once);
+    }
+
+    [Fact]
     public async Task UpdateOrderStatusAsync_ReturnsTrue_WhenOrderExists()
     {
         var order = new Order
@@ -136,5 +274,24 @@ public class OrderServiceTests
         notificationService.Verify(
             x => x.NotifyOrderStatusChangedAsync(It.Is<OrderStatusChangedMessage>(m => m.OrderId == order.Id && m.NewStatus == "Ready")),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateOrderStatusAsync_ReturnsFalse_WhenOrderDoesNotExist()
+    {
+        var missingOrderId = Guid.NewGuid();
+        var orderRepository = new Mock<IOrderRepository>();
+        var notificationService = new Mock<IOrderNotificationService>();
+        var productRepository = new Mock<IProductRepository>();
+
+        orderRepository.Setup(x => x.GetByIdAsync(missingOrderId)).ReturnsAsync((Order?)null);
+
+        var sut = new OrderService(orderRepository.Object, notificationService.Object, productRepository.Object);
+
+        var updated = await sut.UpdateOrderStatusAsync(missingOrderId, OrderStatus.Ready);
+
+        Assert.False(updated);
+        orderRepository.Verify(x => x.UpdateAsync(It.IsAny<Order>()), Times.Never);
+        notificationService.Verify(x => x.NotifyOrderStatusChangedAsync(It.IsAny<OrderStatusChangedMessage>()), Times.Never);
     }
 }

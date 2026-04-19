@@ -47,6 +47,28 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task LoginAsync_ReturnsNull_WhenStaffMemberIsSoftDeleted()
+    {
+        var staffRepository = new Mock<IStaffRepository>();
+        var tokenService = new Mock<ITokenService>();
+        staffRepository.Setup(x => x.GetByPinAsync("1234")).ReturnsAsync(new Staff
+        {
+            Name = "Deleted User",
+            PinCode = "1234",
+            Role = "Admin",
+            IsActive = true,
+            IsDeleted = true
+        });
+
+        var sut = new AuthService(staffRepository.Object, tokenService.Object);
+
+        var result = await sut.LoginAsync(new LoginDto { PinCode = "1234" });
+
+        Assert.Null(result);
+        tokenService.Verify(x => x.GenerateToken(It.IsAny<Staff>()), Times.Never);
+    }
+
+    [Fact]
     public async Task LoginAsync_ReturnsTokenAndIdentity_WhenStaffMemberIsValid()
     {
         var staff = new Staff
@@ -70,5 +92,6 @@ public class AuthServiceTests
         Assert.Equal("jwt-token", result!.Token);
         Assert.Equal("Admin User", result.StaffName);
         Assert.Equal("Admin", result.Role);
+        tokenService.Verify(x => x.GenerateToken(staff), Times.Once);
     }
 }
