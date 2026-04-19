@@ -19,12 +19,10 @@ public class AuthService : IAuthService
     {
         var staff = await _staffRepository.GetByPinAsync(loginDto.PinCode);
         
-        if (staff == null)
+        if (staff == null || !staff.IsActive || staff.IsDeleted)
         {
             return null;
         }
-        
-         
 
         var token = _tokenService.GenerateToken(staff);
 

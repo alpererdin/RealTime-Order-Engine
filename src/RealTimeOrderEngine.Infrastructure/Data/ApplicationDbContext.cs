@@ -42,6 +42,13 @@ namespace RealTimeOrderEngine.Infrastructure.Data
                 .WithOne(p => p.Category)
                 .HasForeignKey(p => p.CategoryId);
 
+            modelBuilder.Entity<Order>().HasQueryFilter(x => !x.IsDeleted);
+            modelBuilder.Entity<OrderItem>().HasQueryFilter(x => !x.IsDeleted);
+            modelBuilder.Entity<Product>().HasQueryFilter(x => !x.IsDeleted);
+            modelBuilder.Entity<Category>().HasQueryFilter(x => !x.IsDeleted);
+            modelBuilder.Entity<Table>().HasQueryFilter(x => !x.IsDeleted);
+            modelBuilder.Entity<Review>().HasQueryFilter(x => !x.IsDeleted);
+            modelBuilder.Entity<Staff>().HasQueryFilter(x => !x.IsDeleted);
             
         }
         

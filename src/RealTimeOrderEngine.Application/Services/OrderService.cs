@@ -1,4 +1,5 @@
 using RealTimeOrderEngine.Application.Interfaces.Repositories;
+using RealTimeOrderEngine.Application.Exceptions;
 using RealTimeOrderEngine.Application.Interfaces.Services;
 using RealTimeOrderEngine.Domain.Entities;
 using RealTimeOrderEngine.Domain.Enums;
@@ -22,6 +23,11 @@ public class OrderService
 
     public async Task<OrderDto> CreateOrderAsync(CreateOrderDto dto)
     {
+        if (dto.Items.Count == 0)
+        {
+            throw new BusinessRuleException("An order must contain at least one item.");
+        }
+
         var orderItems = new List<OrderItem>();
         
         foreach (var item in dto.Items)
@@ -30,19 +36,19 @@ public class OrderService
             
             if (product == null)
             {
-                throw new Exception("Product not found.");
+                throw new ResourceNotFoundException("Product not found.");
             }
             
             if (!product.IsAvailable)  
             {
-                throw new Exception($"{product.Name} is currently unavailable.");
+                throw new BusinessRuleException($"{product.Name} is currently unavailable.");
             }
 
             if (product.IsStockTracked)
             {
                 if (product.StockQuantity < item.Quantity)
                 {
-                    throw new Exception("Insufficient stock for product: " + product.Name);
+                    throw new BusinessRuleException("Insufficient stock for product: " + product.Name);
                 }
                 
                 product.StockQuantity -= item.Quantity;

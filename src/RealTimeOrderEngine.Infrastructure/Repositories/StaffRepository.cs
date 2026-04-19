@@ -21,7 +21,6 @@ public class StaffRepository : IStaffRepository
         var cleanPin = pinCode.Trim();
         
         return await _context.Staffs
-            .IgnoreQueryFilters()  
-            .FirstOrDefaultAsync(s => s.PinCode.Trim() == cleanPin);
+            .FirstOrDefaultAsync(s => !s.IsDeleted && s.IsActive && s.PinCode.Trim() == cleanPin);
     }
 }
