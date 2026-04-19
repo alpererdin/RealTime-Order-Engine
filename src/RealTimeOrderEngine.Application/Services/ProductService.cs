@@ -1,4 +1,5 @@
 using RealTimeOrderEngine.Application.Interfaces.Repositories;
+using RealTimeOrderEngine.Application.Exceptions;
 using RealTimeOrderEngine.Domain.Entities;
 using RealTimeOrderEngine.Shared.DTOs.Products;
 using RealTimeOrderEngine.Shared.DTOs.Stock;
@@ -75,6 +76,32 @@ public class ProductService
         product.StockQuantity = dto.StockQuantity;
         product.IsStockTracked = dto.IsStockTracked;
 
+        await _productRepository.UpdateAsync(product);
+        return true;
+    }
+
+    public async Task<bool> UpdateProductAsync(Guid id, UpdateProductDto dto)
+    {
+        var product = await _productRepository.GetByIdAsync(id);
+        if (product == null) return false;
+
+        product.Name = dto.Name;
+        product.Description = dto.Description;
+        product.ImageUrl = dto.ImageUrl;
+        product.Price = dto.Price;
+        product.CategoryId = dto.CategoryId;
+        product.IsAvailable = dto.IsAvailable;
+
+        await _productRepository.UpdateAsync(product);
+        return true;
+    }
+
+    public async Task<bool> DeleteProductAsync(Guid id)
+    {
+        var product = await _productRepository.GetByIdAsync(id);
+        if (product == null) return false;
+
+        product.IsDeleted = true;
         await _productRepository.UpdateAsync(product);
         return true;
     }
