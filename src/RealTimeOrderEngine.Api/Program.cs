@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using RealTimeOrderEngine.Api.Infrastructure;
 using RealTimeOrderEngine.Api.Hubs;
 using RealTimeOrderEngine.Application.Interfaces.Repositories;
 using RealTimeOrderEngine.Application.Interfaces.Services;
@@ -15,13 +18,38 @@ using System.Threading.RateLimiting;
 var builder = WebApplication.CreateBuilder(args);
 
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
-    ?? new[] { "http://localhost:5104" };
+    ?? [];
+
+if (allowedOrigins.Length == 0)
+{
+    throw new InvalidOperationException("At least one allowed origin must be configured.");
+}
+
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+var jwtSecret = jwtSettings["Secret"];
+var jwtIssuer = jwtSettings["Issuer"];
+var jwtAudience = jwtSettings["Audience"];
+
+if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Contains("SET_ME", StringComparison.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException("JWT secret is missing. Configure Jwt:Secret via environment variables or user secrets.");
+}
+
+if (jwtSecret.Length < 32)
+{
+    throw new InvalidOperationException("JWT secret must be at least 32 characters long.");
+}
+
+if (string.IsNullOrWhiteSpace(jwtIssuer) || string.IsNullOrWhiteSpace(jwtAudience))
+{
+    throw new InvalidOperationException("JWT issuer and audience must be configured.");
+}
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -48,8 +76,7 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = 429;
 });
 
-var jwtSettings = builder.Configuration.GetSection("Jwt");
-var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"] ?? "default_secret_key_for_safety_12345");
+var key = Encoding.UTF8.GetBytes(jwtSecret);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -64,8 +91,8 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
         IssuerSigningKey = new SymmetricSecurityKey(key)
     };
     options.Events = new JwtBearerEvents
@@ -81,7 +108,24 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddControllers();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problemDetails = new ValidationProblemDetails(context.ModelState)
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Validation failed",
+                Detail = "One or more validation errors occurred.",
+                Instance = context.HttpContext.Request.Path
+            };
+
+            return new BadRequestObjectResult(problemDetails);
+        };
+    });
 builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -107,24 +151,39 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
     db.Database.Migrate();
 
-    if (!db.Set<Staff>().Any())
+    if (app.Environment.IsDevelopment() && !db.Set<Staff>().Any())
     {
-        db.Set<Staff>().Add(new Staff
+        var seedAdminName = builder.Configuration["SeedAdmin:Name"];
+        var seedAdminPin = builder.Configuration["SeedAdmin:PinCode"];
+        var seedAdminRole = builder.Configuration["SeedAdmin:Role"] ?? "Admin";
+
+        if (!string.IsNullOrWhiteSpace(seedAdminName) && !string.IsNullOrWhiteSpace(seedAdminPin))
         {
-            Id = Guid.NewGuid(),
-            Name = "Admin",
-            Role = "Admin",
-            PinCode = "1234",
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            IsDeleted = false
-        });
-        db.SaveChanges();
+            db.Set<Staff>().Add(new Staff
+            {
+                Id = Guid.NewGuid(),
+                Name = seedAdminName,
+                Role = seedAdminRole,
+                PinCode = seedAdminPin,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                IsDeleted = false,
+                IsActive = true
+            });
+            db.SaveChanges();
+            logger.LogInformation("Development seed admin user created.");
+        }
+        else
+        {
+            logger.LogWarning("Seed admin user was skipped. Configure SeedAdmin settings in development to create a demo admin account.");
+        }
     }
 }
 
+app.UseExceptionHandler();
 app.UseCors("AllowFrontend");
 app.UseRateLimiter();
 
